@@ -1,30 +1,36 @@
+# 声明
+本手册是 Agner Fog 优化手册系列第一册 "Optimizing software in C++:An optimization guide for Windows,Linux adn Mac." 的中文翻译。可以从[www.agner.org/optimize/](www.agner.org/optimize/)上获取该手册英文版的最新版本。当前中文版是基于2018.9.5日更新的版本翻译的。版权声明请参考本手册最后一章。
 
 # 1 简介
 
-本手册适用那些想要是软件更快的编程人员和软件开发者.本手册假设读者熟练掌握C++编程语言,并了解编译器是如何工作的.至于选择C++作为本手册基础的原因,将在稍后解释.
+本手册适用于那些想要使软件更快的编程人员和软件开发者。本手册假设读者熟练掌握 C++ 编程语言,并了解编译器是如何工作的。至于选择 C++ 作为本手册基础的原因，将在稍后解释.
 
-本手册的内容基于笔者对编译器和微处理器是如何工作的研究.本手册中的建议是针对x86家族的微处理器,包括intel,AMD 和 VIA的处理器(包括64位版本).x86处理器是Widows, Linux, BSD 和 Mac OS X中使用最多的平台,虽然这些操作系统也可以适用其他微处理器,当然很多设备也使用其他平台和变异语言.
+本手册的内容基于笔者对编译器和微处理器是如何工作的研究。本手册中的建议是针对 x86 家族的微处理器，包括 Intel、AMD 和 VIA 的处理器（包括 64 位版本）。x86 处理器是 Widows，Linux， BSD 和 Mac OS X中最常用的平台，即使这些操作系统也适用于其他微处理器，当然很多设备也使用其他平台和变异语言。
 
 本手册是一个系列五本手册中的第一本:
-    1. Optimizing software in C++:An optimization guide for Windows,Linux adn Mac.
-    2. Optimizing subroutines in assembly languague:An optimization guide for x86 platforms.
-    3. The microarchitecture of Intel,AMD and VIA CPUs:An optimization guide for assembly programmers and compiler makers.
-    4. Instruction tables:Lists of instruction latencies,throughputs and micro-operation breakdowns for Intel, AMD and VIA CPUs.
-    5. Calling conventions for dirrerent C++ compilers and operating systems.
+1. Optimizing software in C++:An optimization guide for Windows,Linux adn Mac.
 
- 这些手册的最新版本可以在[www.anger.org/optimize](www.anger.org/optimize),版权声明将列在手册的最后面.
+2. Optimizing subroutines in assembly languague:An optimization guide for x86 platforms.
 
-只用高级语言编写软件的读者只需要阅读本书即可.后续的内容是为了那些想要深入了解 指令集,汇编语言和编译器,处理器微架构的读者准备的.更高层次的优化可以通过使用汇编(for CPU-intensive code?)而获得,这将会在后续的内容中进一步讨论.
+3. The microarchitecture of Intel,AMD and VIA CPUs:An optimization guide for assembly programmers and compiler makers.
 
-请注意到有非常多的人使用到我的优化手册.因此我不可能有时间回答每一个人的问题.所以请不要将你的编程问题发送给我,因为你将得不到任何答案.建议初学者在提高自己的编程经验后,再来尝试手册中所提到的技术.你可以在互联网上的诸多论坛中找到你问题的答案,如果你在相关书籍和手册中找不到答案的话.
+4. Instruction tables:Lists of instruction latencies,throughputs and micro-operation breakdowns for Intel, AMD and VIA CPUs.
 
-我想要感谢那些给我的优化手册发送修正和建议的人,我总是很高兴能够收到相关信息.
+5. Calling conventions for dirrerent C++ compilers and operating systems.
+
+ 这些手册的最新版本可以在[www.agner.org/optimize/](www.agner.org/optimize/)，版权声明将列在手册的最后一章。
+
+只用高级语言编写软件的读者只需要阅读本书即可。后续的内容是为了那些想要深入了解指令集，汇编语言和编译器，处理器微架构的读者准备的。对 CPU 热点代码，可以通过使用汇编获得更高层次的优化，这将会在后续的内容中进一步讨论。
+
+请注意到有非常多的人使用到我的优化手册。因此我不可能有时间回答每一个人的问题。请不要将你的编程问题发送给我，因为你将得不到任何答案。建议初学者在提高自己的编程经验后，再来尝试手册中所提到的技术。,如果你在相关书籍和手册中找不到答案的话，你可以在互联网上的诸多论坛中找到你问题的答案。
+
+我想要感谢那些给我的优化手册发送修正和建议的人，我很高兴能够收到相关信息。
 
 ## 1.1 优化的代价
 
-如今大学的编程课程在软件开发过程中强调结构化、面向对象、模块化、可重用性、系统化。但是这些要求通常都和优化软件的速度呵呵大小相冲突。
+如今大学的编程课程在软件开发过程中强调结构化、面向对象、模块化、可重用性、系统化。但是这些要求通常都和优化软件的速度和大小相冲突的。
 
-如今，软件导师更经常建议我们函数或者方法的行数应该尽可能的少。但是在几十年前，建议通常是相反的：如果某些功能只会调用一次，那么不要就不要把他们封装在分离的子程序中。软件编写风格的建议变化，是是为软件项目变的越来越大、越来越复杂，需要将注意力集中在软件开发中，而且电脑的性能也越来越强大。
+如今，软件老师更经常建议我们函数或者方法的行数应该尽可能的少。但是在几十年前，建议通常是相反的：如果某些功能只会调用一次，那么就不要把他们封装在分离的子程序中。软件编写风格的建议的变化，是因软件项目变的越来越大、越来越复杂，需要将注意力集中在软件开发中，而且电脑的性能也越来越强大。
 
 软件结构化开发的高优先级和程序性能的低优先级，首先反映在编程语言和接口框架的选择上。这对于最终的用户来说，这通常是一个缺点，他们不得不购买性能更加强大的计算机，来跟上更大的软件包，即使对于简单的任务，响应时间也长的不能接受，这使得他们感到沮丧。
 
@@ -730,8 +736,8 @@ $50\%$的情况。等价表达式`b && a`只需要在`b`为`true`时对`a`求值
 
 ```
 // Example 7.7
-unsigned int i; 
-const int ARRAYSIZE = 100; 
+unsigned int i;
+const int ARRAYSIZE = 100;
 float list[ARRAYSIZE];
 if (i < ARRAYSIZE && list[i] > 1.0) { ...
 ```
@@ -3421,3 +3427,2403 @@ void TransposeCopy(double a[SIZE][SIZE], double b[SIZE][SIZE])
 在任何浮点指令之前，`MOVNTQ`指令必须后跟`EMMS`指令。代码为`_mm_empty()`，如**示例9.6b**所示。`MOVNTQ`指令不能在64位*Windows*设备驱动程序中使用。
 
 # 10 多线程
+**CPU**的时钟频率受到物理因素的限制。在时钟频率有限的情况下，提高**CPU**密集型程序的吞吐量的方法是同时做多个事情。有三种方法可以并行地执行任务：
+1. 使用多个**CPU**或多核**CPU**，如本章所述。
+2. 使用现代**CPU**的乱序执行能力，如第11章所述。
+3. 使用现代**CPU**的向量操作，如第12章所述。
+
+多数现代**CPU**都拥有两个或更多个核心，可以预期的是，在未来核心的数量还会继续增加。为了使用多个**CPU**或者多个**CPU**核心，我们需要将任务划分到不同的线程。这里有两个主要的方法：功能分解和数据分解。功能分解意味着不同的线程做不同的工作。例如，一个线程处理用户界面，另一个线程处理和远程数据库的通信，第三个线程处理数学计算。将用户界面和耗时任务放在不同的线程中是很重要的，否则响应时间会变的长且规则，这是很令人讨厌的。将耗时的任务放在低优先级的单独线程中通常是很有帮助的。
+
+然而，在许多情况下，一个任务就消耗了大部分资源。在这种情况下，我们需要将数据分割成多个块，以便利用多个处理器内核。然后每个线程应该处理自己的数据块。这就是数据分解。
+
+在决定并行处理是否有利时，区分粗粒度并行和细粒度并行非常重要。粗粒度并行是指长序列的操作可以独立于并行运行的其他任务的情况。细粒度并行是指任务被划分为许多小的子任务，但是在与其他子任务进行必要的协调之前，不可能在特定的子任务上工作很长时间。
+
+由于不同内核之间的通信和同步比较慢，因此粗粒度并行比使用细粒度并行效率更高。如果粒度太细，那么将任务拆分为多个线程是没有优势的。无序执行（**第11章**）和向量操作（**第12章**）是利用细粒度并行的更有用的方法。
+
+使用多个**CPU**内核的方法是将工作划分为多个线程。第61页（TODO）讨论了线程的使用。在数据分解的情况下，我们最好不要有比系统中可用的内核或逻辑处理器数量更多的具有相同优先级的线程。可用逻辑处理器的数量可以通过系统函数获得（例如**Windows**中的`GetProcessAffinityMask`）。
+
+有几种方法可以在多个**CPU**内核之间划分工作负载：
+1. 定义多个线程，并在每个线程中投入等量的工作。此方法适用于所有编译器。
+2. 使用自动并行化。**Gnu**、**Intel**和**PathScale**编译器可以自动检测代码中的并行化机会，并将其划分为多个线程，但编译器可能无法找到数据的最佳分解方案。
+3. 使用**OpenMP**指令。**OpenMP**是**C++**和**Fortran**中定义并行处理的标准。这些指令被**Microsoft**、**Intel**、**PathScale**和**Gnu**编译器所支持。有关详细信息，请参见[www.openmp.org](www.openmp.org)和编译器手册。
+4. 使用具有内部使用多线程的函数库，例如 *Intel Math Kernel Library*。
+
+多个**CPU**内核或逻辑处理器通常共享相同的缓存，至少在最后一级缓存中是这样，在某些情况下甚至共享相同的一级缓存。共享相同缓存的优点是线程之间的通信变得更快，并且线程可以共享相同的代码和只读数据。缺点是，如果线程使用不同的内存区域，缓存就会被填满，如果线程写入相同的内存区域，就会发生缓存竞争。
+
+只读的数据可以在多个线程之间共享，而可以修改的数据应该被每个线程单独存储。让两个或多个线程写入同一缓存行是没有任何好处的，因为线程会使彼此的缓存无效，并造成较大的延迟。每个线程都有自己的堆栈。使数据特定于线程的最简单方法是在线程函数中声明它，使其为线程本地的，以便将其存储在堆栈中。或者，你可以为包含特定于线程的数据定义结构或类，并为每个线程创建一个实例。此结构或类应至少按缓存线大小进行对齐，以避免多个线程写入同一缓存线。在现代处理器上，缓存线大小通常为64个字节。在未来的处理器上，缓存线大小可能会更大（28或256字节）。
+
+线程之间有很多通信和同步方法，如信号量、互斥量和消息系统。所有这些方法都很耗时。因此，应该对数据和资源进行组织，以便尽可能减少线程之间的必要通信。例如，如果多个线程共享相同的队列、列表、数据库或者其他数据结构，那么你可以考虑能否给每个线程分配自己的数据，当所有线程完成耗时的数据处理后，最后再合并多个数据。
+
+如果在一个只有一个逻辑处理器的系统上运行多个线程，而这些线程会争夺相同的资源，那么这不是一种优势。但是将耗时计算放在一个优先级低于用户界面的单独线程中可能是一个好主意。将文件访问和网络访问放在不同的线程中也很有用，这样一个线程可以在另一个线程等待硬盘或网络响应时进行计算。
+
+Intel提供了各种支持多线程软件的开发工具。参见[**《Intel 技术期刊》**2007年第11卷第4期](www.intel.com/technology/itj/)。
+
+
+## 10.1 同步多线程技术
+许多微处理器能够在每个内核中运行两个线程。例如，一个有4个内核的处理器可以同时运行8个线程。这个处理器有四个物理处理器，但有八个逻辑处理器。
+
+“**超线程**”是 **Intel** 对同步多线程的称呼。在同一个内核中运行的两个线程总是会争夺相同的资源，比如缓存和执行单元。如果有任何的共享资源是制约性能的因素，那么使用同步多线程没有任何优势。相反，由于缓存回收和其他资源冲突，每个线程的运行速度可能不到一半。但是，如果大部分时间存在缓存命中失败、分支错误预测或长依赖链，那么每个线程的运行速度将超过单线程速度的一半。在这种情况下，使用同步多线程有一点优势，但性能不会提高一倍。与另一个线程共享内核资源的线程总是比在内核中单独运行的线程运行得慢。
+
+为了确定在特定的应用程序中使用同步多线程是否有利，常常需要进行测试。
+
+如果并发多线程没有优势，那么有必要查询某些操作系统函数（例如**Windows**中的`GetLogicalProcessorInformation`），以确定处理器是否具有并发多线程。如果有，那么你可以通过只使用序号为偶数的逻辑处理器（0、2、4等）来避免同步多线程。旧的操作系统缺乏区分物理处理器数量和逻辑处理器数量的必要功能。
+
+没有办法告诉处理器给一个线程比另一个线程更高的优先级。因此，低优先级线程经常会从运行在同一内核中的高优先级线程窃取资源。操作系统的责任是避免在同一个处理器内核中运行优先级相差很大的两个线程。不幸的是，当代的操作系统并不能很好地解决这个问题。
+
+**Intel编译器**能够生成两个线程，其中一个线程用于为另一个线程预取数据。然而，在大多数情况下，自动硬件预加载比软件预加载效率更高。
+
+# 乱序执行
+除了一些小的低功耗**CPU** （如**Intel Atom**）之外，所有现代**x86 CPU**都可以无序地执行指令或同时执行多个操作。下面的示例展示了如何利用这种功能：
+
+```C++
+// Example 11.1a
+float a, b, c, d, y;
+y = a + b + c + d;
+```
+这个表达式计算为`((a+b)+c)+d`。这是一个依赖链，每个加法都必须等待前一个的结果。你可以这样写来提高效率：
+
+```C++
+// Example 11.1b
+float a, b, c, d, y;
+y = (a + b) + (c + d);
+```
+两个括号可以独立的计算。在计算完`(a+b)`之前，**CPU**将开始计算`(c+d)`。这可以节省几个时钟周期。你不能假定优化编译器会自动将**示例11.1a**中的代码更改为**示例11.1b**，尽管这似乎是一件显而易见的事情。编译器不对浮点表达式进行这种优化的原因是，它可能会导致精度的损失，如第74页（TODO）所述。你必须手动添加。
+
+当依赖链较长时，其影响更强。在循环中通常是这样。考虑下面的例子，它计算100个数字的和：
+
+```C++
+// Example 11.2a
+const int size = 100;
+float list[size], sum = 0; int i;
+for (i = 0; i < size; i++)
+    sum += list[i];
+```
+这里有一个很长的依赖链。如果浮点加法需要5个时钟周期，那么这个循环大约需要500个时钟周期。通过展开循环并将依赖链一分为二，可以显著提高性能：
+
+```C++
+// Example 11.2b
+const int size = 100;
+float list[size], sum1 = 0, sum2 = 0; int i;
+for (i = 0; i < size; i += 2)
+{
+    sum1 += list[i];
+    sum2 += list[i+1];
+}
+sum1 += sum2;
+```
+如果微处理器从时间 T 到 T+5 对`sum1`做加法，那么它可以从时间 T+1 到 T+6 对 `sum2` 做加法，整个循环只需要256个时钟周期。
+
+在循环中，每个迭代都需要前一个迭代的结果，这种循环中的计算称为循环依赖链。这样的依赖链可能非常长，并且非常耗时。如果这样的依赖链能够被打破，将会有很多收益。`sum1`和`sum2`这两个求和变量称为累加器。当前的**CPU**只有一个浮点加法单元，但是如上所述，这个单元是流水线操作的，因此它可以在前一个加法完成之前开始一个新的加法。
+
+浮点加法和乘法的累加器的最佳数量可能是3个或4个，这取决于**CPU**。
+
+如果循环的次数不能被展开因子整除，那么展开循环就会变得稍微复杂一些。例如，如果**示例11.2b**中 `list` 中的元素数量是奇数，那么我们必须在循环之外计算最后一个元素，或者向`list`中添加一个额外的伪元素，使这个额外的元素为零。
+
+如果没有循环依赖链，则不需要展开循环并使用多个累加器。具有无序功能的微处理器可以重叠迭代，并在前一个迭代完成之前开始下一个迭代的计算。例如：
+
+```C++
+// Example 11.3
+const int size = 100; int i;
+float a[size], b[size], c[size];
+float register temp;
+for (i = 0; i < size; i++)
+{
+    temp = a[i] + b[i];
+    c[i] = temp * temp;
+}
+```
+具有无序功能的微处理器非常智能。他们可以检测到**示例11.3**中循环的一次迭代中的寄存器临时值独立于前一次迭代中的值。这允许它在计算完前一个值完成之前开始计算一个新的临时值。它通过为`temp`分配一个新的物理寄存器来实现这一点，即使在机器码中出现的逻辑寄存器是相同的。这叫做寄存器重命名。**CPU**可以保留同一逻辑寄存器的许多重命名实例。
+
+这种优势是自动产生的。没有理由展开循环并使用`temp1`和`temp2`。现代**CPU**能够在满足某些条件的情况下重命名寄存器和并行执行多个计算。使**CPU**能够重叠循环迭代计算的条件为：
+1. 没有循环依赖链。一次迭代的计算不应该依赖于前一次迭代的结果（循环计数器除外，当它是整数时，它的计算速度很快）。
+2. 所有的中间结果都应该保存在寄存器中，而不是内存中。重命名机制只对寄存器有效，而对内存或缓存中的变量无效。在**示例11.3**中，即使没有`register`关键字，大多数编译器也会使`temp`成为寄存器变量。**CodeGear编译器**不能生成浮点寄存器变量，但会在内存中保存临时变量。这会阻止CPU的重叠计算。
+3. 循环分支被应该可以预测。如果重复计数很大或恒定，则不存在此问题。如果循环计数很小且不断变化，那么CPU可能偶尔会预测循环分支已经退出了，而实际上它没有，因此无法开始下一个计算。然而，无序机制允许**CPU**提前增加循环计数器，这样它就可以在判断错误之前及时发现。因此，你不必太担心这种情况。
+
+通常，无序执行机制是自动工作的。但是，程序员可以做一些事情来最大限度地利用无序执行。最重要的是避免过长的依赖链。你可以做的另一件事是混合不同类型的操作，以便在**CPU**中的不同执行单元之间均匀地分配工作。只要不需要在整数和浮点数之间进行转换，就可以混合使用整数和浮点数计算。将浮点加法与浮点乘法混合使用、将简单整数与向量整数操作混合使用、将数学计算与内存访问混合使用也有很大的好处。
+
+过长的依赖链会给**CPU**的无序资源带来了压力，即使它们没有进入循环的下一个迭代。一个现代的**CPU**通常可以处理100多个待定操作（参见手册3:“The microarchitecture of Intel, AMD and VIA CPUs”)。将循环分割并存储中间结果，对打破一个非常长的依赖链是有帮助的。
+
+# 12 使用向量操作
+
+现如今的微处理器拥有向量指令，使得同时对向量的所有元素进行操作成为可能。这也称为单指令多数据操作（**SIMD**）。每个向量的总大小可以是64位（**MMX**）、128位（**XMM**）、256位（**YMM**）和512位（**ZMM**）。
+
+在大型数据集中，对多个数据元素执行相同操作且程序逻辑允许并行计算时，向量操作非常有用。例如图像处理、声音处理以及向量和矩阵的数学运算。本质上是串行的算法，比如大多数排序算法，不太适合向量操作。严重依赖于表查找或需要大量数据变换的算法（如许多加密算法）可能也不太适合向量操作。
+
+向量操作使用一组特殊的向量寄存器。如果**SSE2**指令集可用，每个向量寄存器的最大大小为128位（**XMM**）；如果微处理器和操作系统支持**AVX**指令集，则为256位（**YMM**）；当**AVX512**指令集可用时为512位。每个向量中的元素数量取决于数据元素的大小和类型，如下所示：
+
+<center>
+
+| **Type of elements** | **Size of each elements, bits** | **Number of elements** | **Total size of vector, bits** | **Instruction set** |
+| -------------------- | :-----------------------------: | :--------------------: | :----------------------------: | ------------------- |
+| `char`               |                8                |           8            |               64               | *MMX*               |
+| `short int`          |               16                |           4            |               64               | *MMX*               |
+| `int`                |               32                |           2            |               64               | *MMX*               |
+| `int64_t`            |               64                |           1            |               64               | *MMX*               |
+|                      |                                 |                        |                                |                     |
+| `char`               |                8                |           16           |              128               | *SSE2*              |
+| `short int`          |               16                |           8            |              128               | *SSE2*              |
+| `int`                |               32                |           4            |              128               | *SSE2*              |
+| `int64_t`            |               64                |           2            |              128               | *SSE2*              |
+| `float`              |               32                |           4            |              128               | *SSE*               |
+| `double`             |               64                |           2            |              128               | *SSE2*              |
+|                      |                                 |                        |                                |                     |
+| `char`               |                8                |           32           |              256               | *AVX2*              |
+| `short int`          |               16                |           16           |              256               | *AVX2*              |
+| `int`                |               32                |           8            |              256               | *AVX2*              |
+| `int64_t`            |               64                |           4            |              256               | *AVX2*              |
+| `float`              |               32                |           8            |              256               | *AVX*               |
+| `double`             |               64                |           4            |              256               | *AVX*               |
+|                      |                                 |                        |                                |                     |
+| `char`               |                8                |           64           |              512               | *AVX512BW*          |
+| `short int`          |               16                |           32           |              512               | *AVX512BW*          |
+| `int`                |               32                |           16           |              512               | *AVX512*            |
+| `int64_t`            |               64                |           8            |              512               | *AVX512*            |
+| `float`              |               32                |           16           |              512               | *AVX512*            |
+| `double`             |               64                |           8            |              512               | *AVX512*            |
+
+**Table 12.1. Vector sizes available in different instruction set extensions**
+
+</center>
+
+例如，当**SSE2**指令集可用时，一个128位的**XMM**寄存器可以组织为一个包含8个16位整数或4个浮点数的向量。应该避免使用64位宽的老旧**MMX**寄存器，因为它们不能与**x87**样式的浮点代码混合使用。
+
+128位的**XMM**向量必须按照16对齐，即存储在一个可以被16整除的内存地址中（见下文）。256位的**YMM**向量最好按32对齐，而512位**ZMM**寄存器需要按64对齐，但是在编译**AVX**和以后的指令集时，对齐要求不那么严格。
+
+在较新的处理器上，向量操作特别快。许多处理器可以像标量一样快速地计算向量（标量意味着单个元素）。支持新向量大小的第一代处理器的执行单元、内存端口等通常只有最大向量大小的一半。为了处理向量中所有元素，这些单元必须被使用两次。
+
+数据元素越小，向量运算的使用就越有优势。例如，你可以同时进行四个`float`的加法，而对于`double`则只有两个。在现在**CPU**中，如果数据很符合向量寄存器，则使用向量运算几乎总是有利的。如果要将正确的数据放入正确的向量元素中，需要进行大量的数据操作，那么这这么做可能并没有什么优势。
+
+## 12.1 AVX 指令集和 YMM 寄存器
+128位的 **XMM** 寄存器在 **AVX** 指令集中被扩展为256位的 **YMM** 寄存器。**AVX** 指令集的主要优点是它允许更大的浮点向量。还有其他一些优势可能会在一定程度上提高性能。**AVX2** 指令集也允许256位整数向量。
+
+为**AVX**指令集编译的代码只有在**CPU**和操作系统都支持**AVX**的情况下才能运行。在**Windows 7**、**Windows Server 2008 R2**和**Linux**内核2.6.30及以上版本中支持**AVX**。**Microsoft**、**Intel**、**Gnu**和**Clang**的最新编译器支持**AVX**指令集。
+
+在某些英特尔处理器上混合使用和不使用**AVX**支持编译的代码时会出现问题。当从**AVX**代码转换到**非AVX**代码时，由于**YMM**寄存器状态的变化，会造成性能损失。应该在从**AVX**代码转换到**非AVX**代码之前调用内部函数`_mm256_zeroupper()`来避免这种损失。在以下情况下，这是必要的：
+1. 如果程序的一部分是使用**AVX**支持编译，而另一部分未使用**AVX**支持编译时，那么在离开**AVX**部分之前调用`_mm256_zeroupper()`。
+2. 如果一个函数使用**CPU**调度，在多个版本中使用或者不适用 **AVX** 支持编译，那么在离开**AVX** 部分之前调用`_mm256_zeroupper()`。
+3. 如果使用了 **AVX** 支持编译的代码调用了编译器附带的库之外的库中的函数，而该库不支持**AVX**，则在调用库函数之前调用`_mm256_zeroupper()`。
+
+## 12.2 AVX512 指令集和 ZMM 寄存器
+256位的 **YMM** 寄存器在 **AVX512** 指令集中被扩展为512位的 **ZMM** 寄存器。在64位模式下，向量寄存器的数量从16个扩展到32个，而在32位模式下只有8个向量寄存器。因此，最好将**AVX512**代码编译为64位模式。
+
+**AVX512** 指令集还添加了一组掩码寄存器。它们被用作布尔向量。几乎任何向量指令都可以用掩码寄存器进行掩码，这样，只有当掩码寄存器中的对应位为1时，才会计算向量元素。这使得使用分支的代码向量化效率更高。
+
+**AVX512** 还有几个额外的扩展。所有支持 **AVX512** 的处理器都有一些这样的扩展，但是到目前为止还没有一个处理器拥有全部这些扩展（写于2016年）。下面是对 **AVX512** 的已有和计划的扩展：
+1. **AVX512F**。基础扩展。所有支持 **AVX512** 的处理器都有这个扩展。包含在512位向量中对32位和64位整数，`float` 和 `double` 的操作以及掩码操作。
+2. **AVX512VL**。包含在128和256位向量中的相同操作。包含掩码操作和32个向量寄存器。
+3. **AVX512BW**。包含在512位向量中8位和16位整数的操作。
+4. **AVX512DQ**。64位整数的乘法和转换指令。以及其它一些浮点和双精度指令。
+5. **AVX512ER**。 快速倒数、倒数平方根、指数函数。对于 `float`类型是准确值，对于 `double` 类型则是近似值。
+6. **AVX512CD**。冲突检测。找到向量中的重复元素。
+7. **AVX512PF**。带聚集/分散逻辑的预取指令。
+8. **AVX512VBMI**。 8位粒度的置换和移位指令。
+9. **AVX512IFMA**。打包52位整数的乘法和加法。
+10. **AVX512_4VNNIW**。Iterated dot product on 16-bit integers.
+11. **AVX512_4FMAPS**。 Iterated fused multiply-and-add, single precision.
+
+这使得CPU调度更加复杂。你可以选择对特定任务有用的扩展，并为具有此扩展的处理器创建代码分支。
+
+在 **AVX512** 代码中，`_mm256_zeroupper()` 的使用不那么重要，但是仍然推荐使用。参见手册2:“Optimizing subroutines in assembly language”的13.2节和手册5:“Calling conventions”的6.3节。
+
+## 12.3 自动向量化
+好的编译器（如 **Gnu**、**Clang** 和 **Intel** 编译器)可以在并行性明显的情况下自动使用向量操作。有关详细说明，请参阅编译器文档。例如：
+
+```C++
+// Example 12.1a. Automatic vectorization
+const int size = 1024;
+int a[size], b[size];
+// ...
+for (int i = 0; i < size; i++)
+{
+    a[i] = b[i] + 2;
+}
+```
+
+一个好的编译器会在指定 **SSE2** 或更高的指令集时使用向量操作来优化这个循环。根据使用指令集的不同，代码将读取4个，或8个，或16个 `b` 中的元素到一个向量寄存器中，与另一个向量寄存器包含（2,2,2,…）做加法，并将结果存储到 `a`中。此操作将被重复多次，次数为数组大小除以每个向量的元素数量。速度相应地提高了。循环计数能最好能被每个向量的元素数整除。你甚至可以在数组的末尾添加多余的元素，使数组大小成为向量大小的倍数。
+
+当数组是通过指针访问的时候，这回有一个缺点，例如：
+
+```C++
+// Example 12.1b. Vectorization with alignment problem
+void AddTwo(int * __restrict aa, int * __restrict bb)
+{
+    for (int i = 0; i < size; i++)
+    {
+        aa[i] = bb[i] + 2;
+    }
+}
+```
+如果数组按向量大小对对齐，**XMM**、**YMM** 和**ZMM** 寄存器分别为16、32或64，则性能最佳。在**AVX**之前，指令集下的高效的向量操作要求数组按可被16整除的地址排列。在**示例12.1a**中，编译器可以根据需要对数组进行对齐，但在**示例12.1b**中，编译器无法确定数组是否正确对齐。循环仍然可以向量化，但是代码的效率会降低，因为编译器必须对未对齐的数组采取额外的预防措施。当通过指针或引用访问数组时，你可以做许多事情来提高代码的效率：
+1. 如果使用的是 **Intel** 编译器，可以使用 `#pragma vector aligned` 或  `_assume_aligned` 指令，告诉编译器数组是对齐的，并确保它们是对齐的。
+2. 将函数声明为 `inline`。这使编译器可能将 **示例12.1b**简化为**12.1a**。
+3. 如果可能的话，启用向量最大的指令集。**AVX** 和之后的指令集对对齐的限制很少，无论数组是否对齐，生成的代码都是高效的。
+
+如果满足以下条件，自动向量化效果最好：
+1. 使用支持自动向量化的编译器，如 **Gnu**、**Clang**、**Intel** 或 **PathScale**。
+2. 使用编译器的最新版本。编译器在向量化方面变得越来越好。
+3. 使用适当的编译器选项来启用所需的指令集（ `/arch:SSE2`， `/arch:AVX` 等用于 **Windows**， `-msse2`， `-mavx` 等用于 **Linux**)。
+4. 使用限制较少的浮点选项。对于** Gnu** 编译器，使用 `-O3 -fnotrapping-math -fno-math-errno`。
+5. 对于 **SSE2**，数组和大结构的地址按16对齐，对于 **AVX** 最好是32，而 **AVX512** 则最好使 64。
+6. 循环计数最好是一个能被向量中的元素数整除的常数。
+7. 如果数组是通过指针访问的，因此在你想要向量化的函数的范围内对齐是不可见的，那么请遵循上面给出的建议。
+8. 如果数组或结构是通过指针或引用访问的，那么显式地告诉编译器指针没有别名 （如果合适的话）。有关如何做到这一点，请参阅编译器文档。
+9. 在向量元素级别上最小化分支的使用。
+10. 避免在向量元素级别使用查找表。
+
+你可以查看汇编代码输出清单，以查看代码是否确实按预期被向量化（参见第86页，TODO）。
+
+如果对连续变量序列执行相同的操作，则编译器还可以在没有循环的情况下使用向量操作。例如：
+
+```C++
+// Example 12.2
+__declspec(align(16)) // Make all instances of S1 aligned
+
+struct S1
+{ // Structure of 4 floats
+    float a, b, c, d;
+};
+void Func()
+{
+    S1 x, y;
+    ...
+    x.a = y.a + 1.;
+    x.b = y.b + 2.;
+    x.c = y.c + 3.;
+    x.d = y.d + 4.;
+};
+
+```
+
+4个浮点数的结构适合128位的 **XMM** 寄存器。在**示例12.2**中，优化后的代码将结构 `y` 加载到向量寄存器中，添加常量向量 `(1,2,3,4)`，并将结果存储在 `x` 中。
+
+编译器并不总是能够正确地预测向量化是否有利。**Intel** 编译器允许你始终使用 `#pragma vector always` 来告诉编译器进行向量化，或者使用 `#pragma novector` 来告诉编译器不要向量化。必须将 **pragmas** 语句放在循环或希望它们应用于的一系列语句之前。
+
+使用适合应用程序的最小数据大小是有利的。在**例12.3**中，例如，您可以通过使用 `short int` 代替 `int` 以得到2倍的速度。`short int` 是16位的， 而 `int` 是32位的，所以在相同的向量中，你可以存储8个 `short int`类型的数字，而只能存储4个 `int` 类型的数。因此，在不会产生溢出的情况下，使用足够大的最小位宽的类型类存储问题中的数字是有利的。同样地，如果代码可以向量化，那么使用 `float` 代替，`double` 是有好处的，因为 `float` 占用32位，而 `double` 占用64位。
+
+**SSE2** 向量指令集不能对大小大于 `short int`（16位）的整数进行乘法。没有指令可以在像两种进行整数除法。但是 [vector class library](https://www.agner.org/optimize/#vectorclass) 和 [asmlib](https://www.agner.org/optimize/asmlib.zip)有函数可以进行整数向量除法。
+
+## 12.4 使用指令集函数
+很难预测编译器是否会将循环向量化。下面的例子显示了编译器可以自动向量化，也可以不自动向量化的代码。代码中有一个分支，它为数组中的每个元素选择两个表达式：
+
+```C++
+// Example 12.4a. Loop with branch
+// Loop with branch
+void SelectAddMul(short int aa[], short int bb[], short int cc[])
+{
+    for (int i = 0; i < 256; i++)
+    {
+        aa[i] = (bb[i] > 0) ? (cc[i] + 2) : (bb[i] * cc[i]);
+    }
+}
+```
+
+可以使用所谓的指令集函数显式地向量化代码。当类似**示例12.4a**等当前编译器不会自动向量化代码的情况下非常有用或在自动向量化的代码不够优化的情况下，它也很有用。
+
+指令集函数是一种基本操作，即每个指令集函数调用都被翻译成一个或几个机器指令。 **Gnu**、**Clang**、**Intel**、**Microsoft** 和 **PathScale** 编译器都支持指令集函数（**PGI**编译器也支持指令集函数，但效率很低，**Codeplay**编译器支持部分指令集函数，但是函数名与其他编译器不兼容）。使用 **Gnu**、**Clang** 和 **Intel** 编译器可以获得最佳的性能。
+
+我们想对**例12.4a**中的循环进行向量化，这样我们就可以在包含8个16位整数的向量中同时处理8个元素。根据可用的指令集，循环内部的分支可以以多种方式实现。最兼容的方法是制作一个位掩码，当 `bb[i] > 0` 为真时全为1，当为假时全为0。将 `cc[i]+2`与上掩码，对掩码取反并与上  `bb[i]**cc[i]`。表达式的结果是与上全部是1的掩码结果不变，而与上全是0的掩码得到的结果为0。然后对这两个记过进行或操作就能得到要选择的表达式。
+
+**示例12.4b**显示如何使用 **SSE2**指令集的函数实现上述步骤。
+
+```C++
+// Example 12.4b. Vectorized with SSE2
+#include <emmintrin.h> // Define SSE2 intrinsic functions
+// Function to load unaligned integer vector from array
+static inline __m128i LoadVector(void const * p)
+{
+    return _mm_loadu_si128((__m128i const*)p);
+}
+// Function to store unaligned integer vector into array
+static inline void StoreVector(void * d, __m128i const & x)
+{
+    _mm_storeu_si128((__m128i *)d, x);
+}
+// Branch/loop function vectorized:
+void SelectAddMul(short int aa[], short int bb[], short int cc[])、
+{
+    // Make a vector of (0,0,0,0,0,0,0,0)
+    __m128i zero = _mm_set1_epi16(0);
+    // Make a vector of (2,2,2,2,2,2,2,2)
+    __m128i two = _mm_set1_epi16(2);
+    // Roll out loop by eight to fit the eight-element vectors:
+    for (int i = 0; i < 256; i += 8)
+    {
+        // Load eight consecutive elements from bb into vector b:
+        __m128i b = LoadVector(bb + i);
+        // Load eight consecutive elements from cc into vector c:
+        __m128i c = LoadVector(cc + i);
+        // Add 2 to each element in vector c
+        __m128i c2 = _mm_add_epi16(c, two);
+        // Multiply b and c
+        __m128i bc = _mm_mullo_epi16 (b, c);
+        // Compare each element in b to 0 and generate a bit-mask:
+        __m128i mask = _mm_cmpgt_epi16(b, zero);
+        // AND each element in vector c2 with the bit-mask:
+        c2 = _mm_and_si128(c2, mask);
+        // AND each element in vector bc with the inverted bit-mask:
+        bc = _mm_andnot_si128(mask, bc);
+        // OR the results of the two AND operations:
+        __m128i a = _mm_or_si128(c2, bc);
+        // Store the result vector in eight consecutive elements in aa:
+        StoreVector(aa + i, a);
+    }
+}
+```
+
+生成的代码将非常高效，因为它一次处理8个元素，并且避免了循环中的分支。**示例12.4b**的执行速度是**示例12.4a**的3到7倍，具体取决于循环中分支的可预测性。
+
+`__m128i` 类型定义了一个包含整数的128位向量。它可以包含16个8位的整数，8个16位的整数，4个32位的整数，或者2个64位的整数。`__m128` 类型定义了一个包含4个 `float` 变量的128位向量。`__m128d` 类型定义了包含2个 `double`类型变量的128为变量。
+
+指令集向量函数的名称以 `_mm` 开头。编译器手册或 **Intel** 的编程手册：“IA-32 Intel Architecture Software Developer’s Manual” 2A and 2B卷中列出了这些函数。指令集中有数百种不同的函数，很难找到适合特定用途的函数。
+
+**示例12.4b**中笨拙的 *AND-OR* 结构可以被**SSE4.1** 指令集中的 `blend` 指令替换：
+
+```C++
+// Example 12.4c. Same example, vectorized with SSE4.1
+// Function to load unaligned integer vector from array
+static inline __m128i LoadVector(void const * p)
+{
+    return _mm_loadu_si128((__m128i const*)p);
+}
+// Function to store unaligned integer vector into array
+static inline void StoreVector(void * d, __m128i const & x)
+{
+    _mm_storeu_si128((__m128i *)d, x);
+}
+void SelectAddMul(short int aa[], short int bb[], short int cc[])
+{
+    // Make a vector of (0,0,0,0,0,0,0,0)
+    __m128i zero = _mm_set1_epi16(0);
+    // Make a vector of (2,2,2,2,2,2,2,2)
+    __m128i two = _mm_set1_epi16(2);
+    // Roll out loop by eight to fit the eight-element vectors:
+    for (int i = 0; i < 256; i += 8)
+    {
+        // Load eight consecutive elements from bb into vector b:
+        __m128i b = LoadVector(bb + i);
+        // Load eight consecutive elements from cc into vector c:
+        __m128i c = LoadVector(cc + i);
+        // Add 2 to each element in vector c
+        __m128i c2 = _mm_add_epi16(c, two);
+        // Multiply b and c
+        __m128i bc = _mm_mullo_epi16 (b, c);
+        // Compare each element in b to 0 and generate a bit-mask:
+        __m128i mask = _mm_cmpgt_epi16(b, zero);
+        // Use mask to choose between c2 and bc for each element
+        __m128i a = _mm_blendv_epi8(bc, c2, mask);
+        // Store the result vector in eight consecutive elements in aa:
+        StoreVector(aa + i, a);
+    }
+}
+```
+
+你必须为要编译的指令集包含适当的头文件。头文件的名称如下：
+
+<center>
+
+| **Instruction set** | ** Header file**                           |
+| :------------------ | :----------------------------------------- |
+| MMX                 | mmintrin.h                                 |
+| SSE                 | xmmintrin.h                                |
+| SSE2                | emmintrin.h                                |
+| SSE3                | pmmintrin.h                                |
+| Suppl. SSE3         | tmmintrin.h                                |
+| SSE4.1              | smmintrin.h                                |
+| SSE4.2              | nmmintrin.h (MS)<br>smmintrin.h (Gnu)</br> |
+| AES, PCLMUL         | wmmintrin.h                                |
+| AVX                 | immintrin.h                                |
+| AMD SSE4A           | ammintrin.h                                |
+| AMD XOP             | ammintrin.h (MS)<br>xopintrin.h (Gnu)</br> |
+| AMD FMA4            | fma4intrin.h (Gnu)                         |
+| all                 | intrin.h (MS)<br>x86intrin.h (Gnu)</br>    |
+
+**Table 12.2. Header files for intrinsic functions**
+
+</center>
+
+您必须确保 **CPU** 支持相应的指令集。如果您包含了高于 **CPU** 支持的指令集头文件，那么您就有可能插入** CPU** 不支持的指令，程序就会崩溃。有关如何检查支持的指令集，请参见第125页（TODO）。
+
+### <u>数据对齐</u>
+
+如果数据的地址按可被向量大小（16或32字节）整除方式对齐，那么将数据加载到向量中会更快。这对旧的处理器和英特尔 **Atom** 处理器都有很大的影响，但在大多数较新的处理器上不是很重要。下面的例子展示了如何对齐数组。
+
+```C++
+// Example 12.5. Aligned arrays
+// Define macro for aligning data
+#ifdef _MSC_VER // If Microsoft compiler
+#define Alignd(X) __declspec(align(16)) X
+#else // Gnu compiler, etc.
+#define Alignd(X) X __attribute__((aligned(16)))
+#endif
+const int size = 256; // Array size
+Alignd ( short int aa[size] ); // Make three aligned arrays
+Alignd ( short int bb[size] );
+Alignd ( short int cc[size] );
+// Function to load aligned integer vector from array
+static inline __m128i LoadVectorA(void const * p)
+{
+    return _mm_load_si128((__m128i const*)p);
+}
+// Function to store aligned integer vector into array
+static inline void StoreVectorA(void * d, __m128i const & x)
+{
+    _mm_store_si128((__m128i *)d, x);
+}
+```
+
+###  <u>查找表向量化</u>
+查找表对于优化代码非常有用，如第135页（TODO）所述。不幸的是，表查找常常是向量化的一个障碍。最新的指令集包括一些可用于向量化表查找的指令。这些说明总结如下。
+
+<center>
+
+| **Intrinsic function** | **Max. number<br>of elements</br>in table** | **Size of each <br>table element</br>** | **Number of<br>simultaneous</br>lookups** | **Instruction set<br>needed</br>** |
+| :--------------------- | :-----------------------------------------: | :-------------------------------------: | :---------------------------------------: | :--------------------------------: |
+|       _mm_shuffle_epi8 |16 |1 byte = char| 16| SSSE3                 |
+|_mm_perm_epi8 |32 | 1 byte = char |16| XOP, AMD only|
+|_mm_permutevar_ps | 4 | 4 bytes = float or int | 4 | AVX|
+|_mm256_permutevar_ps | 4 | 4 bytes = float or int | 8 | AVX2|
+|_mm_i32gather_epi32 | unlimited | 4 bytes = int | 4 | AVX2|
+|_mm256_i32gather_epi32 | unlimited | 4 bytes = int | 8 | AVX2|
+|_mm_i64gather_epi32 | unlimited | 8 bytes = int64_t | 2  | AVX2|
+|_mm256_i64gather_epi32 | unlimited | 8 bytes = int64_t | 4 | AVX2|
+| _mm_i32gather_ps | unlimited | 4  bytes = float | 4 | AVX2|
+|_mm256_i32gather_ps | unlimited | 4 bytes = float | 8 | AVX2|
+|_mm_i64gather_pd | unlimited | 8 bytes = double | 2 | AVX2|
+|_mm256_i64gather_pd | unlimited  | 8 bytes = double | 4 | AVX2|
+
+**Table 12.3. Intrinsic functions for vectorized table lookup**
+
+</center>
+
+
+使用指令集函数可能会非常繁琐，代码会变得非常庞大，难以阅读。如下一节所述，使用向量类通常更简单一些。
+
+## 12.5 使用向量类
+用**示例12.4b**和**示例12.4c**中的方式编写程序确实很乏味。通过将这些向量操作包装到 `C++` 类中，并使用重载的操作符（如添加向量），可以以更清晰易懂的方式编写相同的代码。操作符是内联的，因此生成的机器码与直接使用指令集函数时的机器码相同。只是编写 `a + b` 比编写 `_mm_add_epi16(a,b)` 更容些。
+
+目前可以使用几种不同的预定义的向量类库，包括一个来自 **Intel**的，一个来自我的。我编写的向量类库（**VCL**）有许多特性，请参见[www.agner.org/optimize/#vectorclass](www.agner.org/optimize/#vectorclass)。**Intel vector class library** 最近没有更新，我觉得可能有些过时。
+
+<center>
+
+| **Vector class library** | **Intel** | **VCL (Agner)** |
+| ------------------------ | --------- | --------------- |
+|Available from | Intel and Microsoft C++ compilers | [VCL](www.agner.org/optimize/#vectorclass) |
+|Include file | dvec.h | vectorclass.h|
+|Supported compilers | Intel, Microsoft | Intel, Microsoft, Gnu, Clang|
+|Supported operating systems | Windows, Linux, Mac | Windows, Linux, Mac, BSD |
+|Instruction set control | no | yes |
+|License | license included in compiler price GNU General Public License,<br>optional commercial license</br>|
+
+**Table 12.4. Vector class libraries**
+
+</center>
+
+下表列出了可用的向量类。包含适当的头文件将使你能够访问所有这些类。
+
+<center>
+
+| Size of each element, bits | Number of elements in vector |  Type of elements  | Total size of vector, bits | Vector class, Intel | Vector class,VCL |
+| :------------------------: | :--------------------------: | :----------------: | :------------------------: | :-----------------: | :--------------: |
+|             8              |              8               |        char        |             64             |       Is8vec8       |                  |
+|             8              |              8               |   unsigned char    |             64             |       Iu8vec8       |                  |
+|             16             |              4               |     short int      |             64             |      Is16vec4       |                  |
+|             16             |              4               | unsigned short int |             64             |      Iu16vec4       |                  |
+|             32             |              2               |        int         |             64             |      Is32vec2       |                  |
+|             32             |              2               |    unsigned int    |             64             |      Iu32vec2       |                  |
+|             64             |              1               |      int64_t       |             64             |       I64vec1       |                  |
+|             8              |              16              |        char        |            128             |      Is8vec16       |      Vec16c      |
+|             8              |              16              |   unsigned char    |            128             |      Iu8vec16       |     Vec16uc      |
+|             16             |              8               |     short int      |            128             |      Is16vec8       |      Vec8s       |
+|             16             |              8               | unsigned short int |            128             |      Iu16vec8       |      Vec8us      |
+|             32             |              4               |        int         |            128             |      Is32vec4       |      Vec4i       |
+|             32             |              4               |    unsigned int    |            128             |      Iu32vec4       |      Vec4ui      |
+|             64             |              2               |      int64_t       |            128             |       I64vec2       |      Vec2q       |
+|             64             |              2               |      uint64_t      |            128             |                     |      Vec2uq      |
+|             8              |              32              |        char        |            256             |                     |      Vec32c      |
+|             8              |              32              |   unsigned char    |            256             |                     |     Vec32uc      |
+|             16             |              16              |     short int      |            256             |                     |      Vec16s      |
+|             16             |              16              | unsigned short int |            256             |                     |     Vec16us      |
+|             32             |              8               |        int         |            256             |                     |      Vec8i       |
+|             32             |              8               |    unsigned int    |            256             |                     |      Vec8ui      |
+|             64             |              4               |      int64_t       |            256             |                     |      Vec4q       |
+|             64             |              4               |      uint64_t      |            256             |                     |      Vec4uq      |
+|             32             |              16              |        int         |            512             |                     |      Vec16i      |
+|             32             |              16              |    unsigned int    |            512             |                     |     Vec16ui      |
+|             64             |              8               |      int64_t       |            512             |                     |      Vec8q       |
+|             64             |              8               |      uint64_t      |            512             |                     |      Vec8uq      |
+|             32             |              4               |       float        |            128             |       F32vec4       |      Vec4f       |
+|             64             |              2               |       double       |            128             |       F64vec2       |      Vec2d       |
+|             32             |              8               |       float        |            256             |       F32vec8       |      Vec8f       |
+|             64             |              4               |       double       |            256             |       F64vec4       |      Vec4d       |
+|             32             |              16              |       float        |            512             |                     |      Vec16f      |
+|             64             |              8               |       double       |            512             |                     |      Vec8d       |
+
+**Table 12.5. Vector classes defined in two libraries**
+
+</center>
+
+不建议使用总大小为64位的向量，因为它们与浮点数代码不兼容。如果使用64位向量，那么必须在64位向量操作之后和浮点代码之前执行调用 `_mm_empty()`。较大的向量没有这个问题。
+
+只有在 **CPU** 和操作系统支持的情况下，256位和512位大小的向量才可用 （参见第109页，TODO）。我的**VCL**向量类库可以用两个128位向量模拟一个256位向量，或者将用两个256位向量或四个128位向量模拟一个512位向量。下面的示例展示了与**示例12.4b**相同功能的代码，使用 **Intel vector classes** 重写：
+
+```C++
+// Example 12.4d. Same example, using Intel vector classes
+#include <dvec.h> // Define vector classes
+// Function to load unaligned integer vector from array
+static inline __m128i LoadVector(void const * p)
+{
+    return _mm_loadu_si128((__m128i const*)p);
+}
+// Function to store unaligned integer vector into array
+static inline void StoreVector(void * d, __m128i const & x)
+{
+    _mm_storeu_si128((__m128i *)d, x);
+}
+void SelectAddMul(short int aa[], short int bb[], short int cc[])
+{
+    // Make a vector of (0,0,0,0,0,0,0,0)
+    Is16vec8 zero(0,0,0,0,0,0,0,0);
+    // Make a vector of (2,2,2,2,2,2,2,2)
+    Is16vec8 two(2,2,2,2,2,2,2,2);
+    // Roll out loop by eight to fit the eight-element vectors:
+    for (int i = 0; i < 256; i += 8)
+    {
+        // Load eight consecutive elements from bb into vector b:
+        Is16vec8 b = LoadVector(bb + i);
+        // Load eight consecutive elements from cc into vector c:
+        Is16vec8 c = LoadVector(cc + i);
+        // result = b > 0 ? c + 2 : b * c;
+        Is16vec8 a = select_gt(b, zero, c + two, b * c);
+        // Store the result vector in eight consecutive elements in aa:
+        StoreVector(aa + i, a);
+    }
+}
+```
+
+同样的例子使用我的**VCL**向量类是这样的：
+
+```C++
+// Example 12.4e. Same example, using VCL
+#include "vectorclass.h" // Define vector classes
+void SelectAddMul(short int aa[], short int bb[], short int cc[])
+{
+    // Define vector objects
+    Vec16s a, b, c;
+    // Roll out loop by eight to fit the eight-element vectors:
+    for (int i = 0; i < 256; i += 16)
+    {
+        // Load eight consecutive elements from bb into vector b:
+        b.load(bb+i);
+        // Load eight consecutive elements from cc into vector c:
+        c.load(cc+i);
+        // result = b > 0 ? c + 2 : b * c;
+        a = select(b > 0, c + 2, b * c);
+        // Store the result vector in eight consecutive elements in aa:
+        a.store(aa+i);
+    }
+}
+```
+
+由于对齐的问题，**Microsoft**编译器不允许将向量对象作为函数参数。建议使用常量引用：
+
+```C++
+
+// Example 12.6. Function with vector parameters
+Vec4f polynomial (Vec4f const & x)
+{
+    // polynomial(x) = 2.5*x^2 - 8*x + 2
+    return (2.5f * x - 8.0f) * x + 2.0f;
+}
+```
+
+### <u>使用向量类进行CPU调度</u>
+**VCL**向量类库使从相同的源代码位不同的指令集编译代码成为可能。该库具有为给定指令集选择最佳实现的预处理指令。
+
+下面的示例展示了如何使用自动CPU调度实现**示例(12.4e)**中的 `SelectAddMul` 。本例中的代码应该编译三次，一次使用 **SSE2** 指令集，一次使用 **SSE4.1** 指令集，一次用于 **AVX2** 指令集，所有三个版本都应该被链接到同一个可执行文件中。**SSE2** 是 **VCL** 支持的最旧指令集，**SSE4.1** 在 `select` 函数中具有优势，**AVX2** 指令集具有更大的向量寄存器的优势。当使用 **AVX2**指令集编译时，**VCL** 将会为 `Vec16s`分配一个256位向量寄存器来为，使用低版本的指令集时，则分配两个128位向量寄存器。预处理宏 **INSTRSET** 用于在使用不同指令集时赋予函数不同的名称。更多内容详见[ vectorclass manual](https://www.agner.org/optimize/#vectorclass)。
+
+```C++
+// Example 12.7. Vector class code with automatic CPU dispatching
+#include "vectorclass.h" // vector class library
+#include <stdio.h> // define fprintf
+// define function type
+typedef void FuncType(short int aa[], short int bb[], short int cc[]);
+// function prototypes for each version
+FuncType SelectAddMul, SelectAddMul_SSE2, SelectAddMul_SSE41,
+SelectAddMul_AVX2, SelectAddMul_dispatch;
+// Define function name depending on instruction set
+#if INSTRSET == 2 // SSE2
+    #define FUNCNAME SelectAddMul_SSE2
+#elif INSTRSET == 5 // SSE4.1
+    #define FUNCNAME SelectAddMul_SSE41
+#elif INSTRSET == 8 // AVX2
+    #define FUNCNAME SelectAddMul_AVX2
+#endif
+// specific version of the function. Compile once for each version
+void FUNCNAME(short int aa[], short int bb[], short int cc[])
+{
+    Vec16s a, b, c; // Define biggest possible vector objects
+    // Roll out loop by 16 to fit the biggest vectors:
+    for (int i = 0; i < 256; i += 16)
+    {
+        b.load(bb+i);
+        c.load(cc+i);
+        a = select(b > 0, c + 2, b * c);
+        a.store(aa+i);
+    }
+}
+#if INSTRSET == 2
+// make dispatcher in only the lowest of the compiled versions
+#include "instrset_detect.cpp" // instrset_detect function
+// Function pointer initially points to the dispatcher.
+// After first call it points to the selected version
+FuncType * SelectAddMul_pointer = &SelectAddMul_dispatch;
+// Dispatcher
+void SelectAddMul_dispatch(short int aa[], short int bb[], short int cc[])
+{
+    // Detect supported instruction set
+    int iset = instrset_detect();
+    // Set function pointer
+    if (iset >= 8)
+        SelectAddMul_pointer = &SelectAddMul_AVX2;
+    else if (iset >= 5)
+        SelectAddMul_pointer = &SelectAddMul_SSE41;
+    else if (iset >= 2)
+        SelectAddMul_pointer = &SelectAddMul_SSE2;
+    else
+    {
+        // Error: lowest instruction set not supported
+        fprintf(stderr, "\nError: Instruction set SSE2 not supported");
+        return;
+    }
+    // continue in dispatched version
+    return (*SelectAddMul_pointer)(aa, bb, cc);
+}
+// Entry to dispatched function call
+inline void SelectAddMul(short int aa[], short int bb[], short int cc[])
+{
+    // go to dispatched version
+    return (*SelectAddMul_pointer)(aa, bb, cc);
+}
+#endif // INSTRSET == 2
+```
+
+## 12.6  为向量化转换串行代码
+
+并不是所有具有并行结构的代码都可以轻松地使用向量组织的。很多代码都是串行的，也就是说每个计算都依赖于前一个的结果。然而，如果代码是重复的，则可以以一种可被向量化的方式组织代码。最简单的情况是一长串数字的和：
+
+```C++
+// Example 12.8a. Sum of a list
+float a[100];
+float sum = 0;
+for (int i = 0; i < 100; i++) 
+    sum += a[i];
+```
+
+上述的代码时串行的，因为每次迭代 `sum`的值都依赖于前一次迭代后 `sum`的值。诀窍是将循环按 `n` 展开并重新组织代码，每个值依赖于 `n` 个位置之前的值，其中 `n` 是向量中元素的数量。如果 `n = 4`，我们得到：
+
+```C++
+// Example 12.8b. Sum of a list, rolled out by 4
+float a[100];
+float s0 = 0, s1 = 0, s2 = 0, s3 = 0, sum;
+for (int i = 0; i < 100; i += 4)
+{
+    s0 += a[i];
+    s1 += a[i+1];
+    s2 += a[i+2];
+    s3 += a[i+3];
+}
+sum = (s0+s1)+(s2+s3);
+```
+
+现在，`s0`、`s1`、`s2` 和 `s3 `可以组合成一个128位的向量，这样我们就可以在一个操作中做4个加法。如果我们指定 *fast math* x和SSE或更高指令集的选项，一个好的编译器会自动将**示例12.8a**转换为**12.8b**，并向量化代码。
+
+一些更复杂的情况下不能自动向量化。例如，让我们看看泰勒级数的例子。指数函数可由级数计算：
+
+<center>
+
+```mathjax
+
+$$
+e^x=\sum_{n=0}^\infty\frac{x^n}{n!}
+$$
+```
+</center>
+
+用 **C++** 实现看起来可能是这样的：
+
+```C++
+// Example 12.9a. Taylor series
+float Exp(float x)
+{
+    // Approximate exp(x) for small x
+    float xn = x; // x^n
+    float sum = 1.f; // sum, initialize to x^0/0!
+    float nfac = 1.f; // n factorial
+    for (int n = 1; n <= 16; n++)
+    {
+        sum += xn / nfac;
+        xn *= x;
+        nfac *= n+1;
+    }
+return sum;
+}
+```
+
+在这里每个 $x^n$ 的值由前一个值计算而来，即 $x^n = x*(x^{n-1})$，每个 $n!$ 的值也由前一个值计算而来，即 $n!= n*(n-1)!$。如果我们想要将循环按4展开，那我们必要用4个位置之前的值来计算当前的值。因此，我们将用 $x^4*x^{n-4}$来计算$x^n$。没有简单的方法来展开阶乘的计算，但是这个并不是必需的，因为阶乘并不依赖  $x$ ，我们可以将值预先计算好，存一个一个表中。更好的方法是存储阶乘的倒数，这样我们就不需要除法了（如你所知，除法是很慢的）。现在上述的的代码可以按如下的方式向量化（使用 **Intel vector classes**）：
+
+```C++
+// Example 12.9b. Taylor series, vectorized
+#include <dvec.h> // Define vector classes (Intel)
+#include <pmmintrin.h> // SSE3 required
+// This function adds the elements of a vector, uses SSE3.
+// (This is faster than the function add_horizontal)
+static inline float add_elements(__m128 const & x)
+{
+    __m128 s;
+    s = _mm_hadd_ps(x, x);
+    s = _mm_hadd_ps(s, s);
+    return _mm_cvtss_f32(s);
+}
+float Exp(float x)
+{
+    // Approximate exp(x) for small x
+    __declspec(align(16)) // align table by 16
+    const float coef[16] = { // table of 1/n!
+    1., 1./2., 1./6., 1./24., 1./120., 1./720., 1./5040.,
+    1./40320., 1./362880., 1./3628800., 1./39916800.,
+    1./4.790016E8, 1./6.22702E9, 1./8.71782E10,
+    1./1.30767E12, 1./2.09227E13};
+    float x2 = x * x; // x^2
+    float x4 = x2 * x2; // x^4
+    // Define vectors of four floats
+    F32vec4 xxn(x4, x2*x, x2, x); // x^1, x^2, x^3, x^4
+    F32vec4 xx4(x4); // x^4
+    F32vec4 s(0.f, 0.f, 0.f, 1.f); // initialize sum
+    for (int i = 0; i < 16; i += 4)
+    {
+        // Loop by 4
+        s += xxn * _mm_load_ps(coef+i); // s += x^n/n!
+        xxn *= xx4; // next four x^n
+    }
+    return add_elements(s); // add the four sums
+}
+```
+
+这个循环在一个向量中计算四个连续的项。如果循环很长，那么进一步展开循环可能是值得的，因为这里的速度可能受到 `xxn` 相乘的延迟而不是吞吐量的限制（参见第106页，TODO）。这里的系数表是在编译时计算的。在运行时计算表可能更方便，只要确保只表只被计算一次，而不是每次调用函数时都会被计算一次。
+
+## 12. 7 支持向量的数学函数
+有很多的函数库可以用于 计算向量的对数函数、指数函数、三角函数等数学函数。这些函数库对于向量化数学代码非常有用。
+
+向量数学库有两种：长向量库（long vector library）和短向量库（short vector library）。为了解释它们之间的区别，假设你想相同的函数对一千个数进行计算。使用长向量库时，您将一个包含一千个数字的数组作为参数提供给库函数，该函数一千个结果存储在另一个数组中。使用长向量库的缺点是，如果要进行一长串计算，则必须在进行进一步计算前之前，必须每个步骤的中间结果存储在临时数组中。使用短向量库时，您可以将数据集划分为子向量，这些子向量与 **CPU** 中向量寄存器的大小相匹配。如果向量寄存器可以容纳4个数字，那么您必须调用库函数250次，每次将4个数字装入向量寄存器。库函数将在向量寄存器中返回结果，向量寄存器可以在计算序列中的下一个步骤直接使用，而不需要将中间结果存储在**RAM**内存中。尽管有额外的函数调用，但这可能会更快，因为 **CPU** 可以在预取下一个函数的代码的同时进行计算。然而，如果计算序列形成了长依赖链，使用短向量的方法可能会处于不利地位。我们希望 **CPU** 在完成对第一个子向量的计算之前开始对第二个子向量的计算。长依赖链可能会填满 **CPU** 中挂起的指令队列，并阻止其充分利用乱序执行的计算能力。
+
+下面是一些长向量数学库的列表：
+1. Intel vector math library (VML, MKL)。支持所有 **x86** 平台。这个库降低了**非英特尔CPU**的性能，除非您重写了英特尔的**CPU调度程序**。见134页（TODO）。
+2. Intel Performance Primitives (IPP)。支持所有 **x86** 平台。在非英特尔的**CPU**上也能工作的很好。包括许多用于统计学，信号处理和图像处理的函数。
+3. Yeppp。开源库。支持 **x86** 和**ARM**平台以及多种编程语言。[www.yeppp.info](www.yeppp.info)。
+
+下面是一些短向量数学库的列表：
+1. Sleef library。支持多种不同的平台。开源。[www.sleef.org](www.sleef.org)。
+2. Intel short vector math library (SVML)。这是由 **Intel编译器**提供的，并通过自动向量化调用。**Gnu编译器**可以通过选项`-mveclibabi=svml`使用这个库。如果不使用Intel编译器，这个库通常可以很好地处理 **非Intel CPU**。见134页（TODO）。
+3. AMD LIBM library。只在64位 **Linux**和 **Windows**平台上可用。这个库在没有 **FMA4** 指令集的情况下降低了 **CPU** 的性能（这个指令集最初是由英特尔设计的，但目前只有 **AMD**的 **CPU**支持）。**Gnu编译器**可以通过选项 `-mveclibabi=acml` 使用这个库。
+4. VCL vector class library。支持所有 **x86**平台。支持 **Microsoft**、**Intel**、**Gnu** 和 **Clang**编译器。代码是内联的，不需要链接外部库。[www.agner.org/optimize/#vectorclass](www.agner.org/optimize/#vectorclass)。
+
+所有这些库都具有很好的性能和精度。速度比任何非向量库快很多倍。
+
+**SVML** 和 **LIBM** 库中的函数名没有很好的文档说明。如果你想直接调用库函数，可以参考下表中的例子：
+
+
+<center>
+
+| **Library**                 | **exp function of 4 floats** | **exp function of 2 double** |
+| :-------------------------- | :--------------------------- | :--------------------------- |
+| Intel SVML v.10.2 & earlier | `vmlsExp4 `                   | `vmldExp2`                     |
+| Intel SVML v.10.3 & later   | `__svml_expf4` | `__svml_exp2`                                 |
+| Intel SVML + ia32intrin.h | `_mm_exp_ps` | `_mm_exp_pd` |
+| AMD Core Math Library | `__vrs4_expf` | `__vrd2_exp` |
+| AMD LIBM Library | `amd_vrs4_expf` | `amd_vrd2_exp` |
+|VCL vector class library | `exp` |`exp` |
+
+</center>
+
+## 12.8 对齐动态分配的内存
+使用 `new` 或 `malloc` 分配的内存通常按8对齐，而不是按16对齐。当矢量运算需要按16对齐时，这就是个问题了。**Intel 编译器**通过定义 `_mm_malloc` 和 `_mm_free` 解决了这个问题。
+
+更通用的方法是将分配的数组封装到容器类中，由容器类负责对齐。参见[www.agner.org/optimize/cppexamples.zip](www.agner.org/optimize/cppexamples.zip)了解如何使用向量访问使数组对齐。
+
+## 12.9 对齐RGB视频或三维向量
+
+**RGB** 图像数据每个点有三个值。这不适用于向量，例如四个浮点数。这同样适用于三维几何和其他奇数大小的向量数据。为了提高效率，数据必须按向量大小对齐。使用未对齐的读和写可能会降低执行速度，从而降低使用向量操作的优势。你可以选择以下一种解决方案，具体哪种方案最适合取决于你的算法：
+1. 加入不使用的第四个值，使数据适合于向量。这是一个简单的解决方案，但是它增加了内存使用量。如果内存访问是瓶颈，需要避免使用这种方法。
+2. 将四个（或八个）点的的数据组成一组，其中一个向量中有四个R值，下一个向量中有四个G值，最后一个向量中有四个B值。
+3. 首先用所有的R值组织成数据，然后是所有的G值，最后是所有的B值。
+
+选择哪种方法取决于哪种方法最适合所讨论的算法。您可以选择可以写出最简单代码的方法。
+
+如果点的数量不能被向量大小整除，那么在最后面添加几个未使用的点，以得到整数个向量。
+
+## 12.10 总结
+如果代码天生具有并行性，那么使用向量可以大大提高速度。增益取决于每个向量的元素数。最简单和最干净的解决方案是依赖于编译器的自动向量化。在并行性明显且代码只包含简单标准操作的情况下，编译器将自动向量化代码。您所要做的就是启用适当的指令集和限制少的浮点选项。
+
+然而，在许多情况下，编译器无法自动对代码进行向量化，或者以一种不太理想的方式进行向量化。在这里，您必须显式地向量化代码，有很多方法可以做到：
+1. 使用汇编语言。
+2. 使用指令集。
+3. 使用预定义的向量类。
+
+使用向量类是向量化代码的最简单方法。如果你需要的操作向量类库并没有提供，那么你可以通过使用向量类外加几个指令集函数来实现。无论您选择使用内部函数还是向量类，这只是是否方便的问题 — 在性能上没有区别。一个好的优化编译器应该在这两种情况下生成相同的代码。内部函数看起来笨拙而乏味。当您使用向量类和重载运算符时，代码将变得更具可读性。
+
+好的编译器通常能够在手动向量化代码之后进一步优化代码。编译器可以使用函数内联、公共子表达式消除、常量传播、循环优化等优化技术。这些技术很少用于手动编写编码，因为它使代码变得笨拙、容易出错，而且难以维护。因此，在许多情况下，手动向量化与编译器的进一步优化相结合可以得到最好的结果。当前的编译器并不总是擅长于在向量化的代码上进行常量传播和某些其他优化技术。因此，在编译器可以自动向量化而没有问题的情况下，依赖于编译器的自动向量化会更好。为了找到最佳解决方案，可能需要进行一些试验。
+
+向量化代码通常包含许多额外的指令，用于将数据转换为正确的格式，并将它们放到向量中的正确位置。这种数据转换和变换有时会比实际计算花费更多的时间。在决定使用向量化代码是否有利可图时，应该考虑到这一点。
+
+我将通过总结决定矢量化有多有利的因素来结束本节。
+
+
+### 使向量化有利的因素：
+1. 小数据类型：`char`、`short`、`int`、`float`。
+2. 大数组中对所有数据进行相似的操作。
+3. 数组大小可以被向量大小整除。
+4. 在不可预测的分支中选择两个简单表达式。
+5. 只有向量操作数可用的操作：取最小值、取最大值、饱和加法、快速近似倒数、快速近似倒数平方根、RGB色差。
+6. 向量指令集可用时，如：**AVX**、**AVX2**、**AVX-512**。
+7. 数学向量函数库。
+8. 使用 **GNU**、**Clang**、**Intel**编译器。
+
+### 使向量化不那么有用的因素：
+1. 大数据类型：`int64_t`、`double`。
+2. 未对齐的数据。
+3. 额外的数据转换：需要 *shuffling*、*packing*、*unpacking* 等操作。
+4. 分支可预测时，在未选中时可以跳过大量表达式。
+5. 编译器没有足够的指针对齐和别名信息。
+6. 在指令集中缺少合适类型的向量操作，如 **SSE4.1** 之前的32位整数乘法和整数除法。
+7. 执行单元小于向量寄存器大小的老 **CPU**.
+
+对于程序员来说，向量化的代码更不易编写，因此更容易出错。因此，矢量化代码最好放在可重用且经过良好测试的库模块和头文件中。
+
+# 13 为不同指令集生成多个版本的关键代码
+
+微处理器制造商不断地向指令集中添加新的指令。这些新的指令可以使某些类型的代码执行得更快。对指令集最重要的补充是第12章中提到的向量运算。
+
+如果代码是为特定的指令集编译的，那么它将与支持该指令集或任何更高指令集的所有 **CPU** 兼容，但可能不与更早的 **CPU** 兼容。向后兼容指令集的顺序如下：
+
+<center>
+
+| **Instruction set** | **Important features** |
+| :------------------ | :--------------------- |
+| 80386 | 32 bit mode |
+|SSE | 128 bit float vectors |
+| SSE2 | 128 bit integer and double vectors |
+| SSE3 | horizontal add, etc. |
+| SSSE3 | a few more integer vector instructions |
+| SSE4.1  | some more vector instructions |
+| SSE4.2 | string search instructions |
+|AVX | 256 bit float and double vectors |
+| AVX2 | 256 bit integer vectors |
+| FMA3 | floating point multiply-and-add |
+| AVX-512 | 512 bit integer and floating point vectors |
+
+**Table 13.1. Instruction sets**
+
+</center>
+
+手册4 "Instruction tables”提供了对指令集的更详细的说明。在混合使用 **AVX** 或更高版本编译的代码和不使用 **AVX** 编译的代码时会有一定的限制，如第109页（TODO）所解释的。
+
+使用最新指令集的一个缺点是缺失了与旧微处理器的兼容性。这个难题可以在关键部分通过为不同的 **CPU** 使用多个版本的代码中来解决。这称为 **CPU调度**。例如，您可能希望创建一个利用 **AVX2** 指令集优势的版本，另一个只使用  **SSE2** 指令集的，以及一个而不使用任何这些指令集与旧微处理器兼容的通用版本。程序应该自动检测 **CPU** 支持哪个指令集。
+
+## 13.1 CPU 调度策略
+在开发、测试和维护方面，将一段代码转换成多个版本，每个版本都针对一组特定的c进行了仔细的优化和微调，这代价是相当大的。对于在多个应用程序中使用的通用函数库，这些代价是合理的，但这并不总是针对特定于应用程序的代码。如果您考虑使用 **CPU调度** 来生成高度优化的1代码，那么如果可能的话，最好以可重用库的形式来实现。这也使得测试和维护更加容易。
+
+我对**CPU调度**做了大量的研究，发现很多常用的程序都使用了不合适的**CPU调度**方法。
+
+<u>**CPU调度**最常见的陷阱是：</u>
+1. <u>优化当前的处理器而不是未来的处理器</u>。考虑使用 **CPU调度**开发和发布函数库所需的时间。在应用程序程序员获得库的新版本之前，还需要额外的时间。再加上开发和推广应用程序所需的时间。在加上最终用户获得应用程序的最新版本所需的时间。总而言之，您的代码要在大多数最终用户的计算机上运行通常需要几年的时间。此时，您所优化的任何处理器都可能已经过时。程序员常常低估了这种时间延迟。
+2. <u>考虑特定的处理器模型而不是处理器特性</u>。程序员通常会考虑汕尾是“什么任务在处理器X上工作得最好?”而不是“什么任务在具有这个指令集的处理器上工作得最好?”。为每个处理器模型使用哪个代码分支的列表将会非常长，而且很难维护。最终用户也不太可能拥有最新的版本。**CPU调度器** 不应该查看 **CPU** 品牌和型号，而应该查看它具有哪些指令集和其他特性。
+3. <u>假设处理器型号组成一个逻辑序列</u>。如果您知道处理器型号N支持一个特定的指令集，那么您就不能假定型号N+1至少支持相同的指令集。一个数字更大的型号不一定是更新的。**CPU** 系列和型号并不总是连续的，对于未知CPU，你不能根据的系列和型号对其进行任何假设。
+4. <u>无法正确处理未知处理器</u>。许多 **CPU调度器**被设计成只处理已知的处理器。在编程时未知的其他品牌或型号通常会使用通用的代码分支，这是性能最差的分支。我们必须记住，许多用户更愿意在最新的 **CPU** 上运行速度关键型程序，而这个 **CPU** 在编程时很可能是未知的。**CPU调度器** 应该给一个未知品牌或型号的CPU最好的分支，如果它支持该分支兼容的指令集。“我们不支持处理器X”的常见借口在这里根本不合适。它揭示了 **CPU调度** 的根本缺陷。
+5. <u>低估维持更新 **CPU调度程序**的成本</u>。很容易为特定 CPU 型号调优代码，然后认为在新的 CPU 型号上市时你可以进行更新。但是，调优、测试、验证和维护一个新的代码分支的成本是如此之高，以至于在未来的许多年里，对每一个进入市场新的处理器都这么做是不现实的。即使是大型软件公司也常常无法使它们的 CPU 调度程序保持最新。一个更现实的目标是，只有当一个新的指令集出现，使显著地提升性能成为可能时，才创建一个新的分支。
+6. <u>创建太多的代码分支</u>。如果您正在创建针对特定 CPU 品牌或特定型号进行调优的分支，那么您很快就会得到许多占用缓存空间且难于维护的分支。你在特定 CPU 型号中处理的任何特定瓶颈或任何特别慢的指令在一两年内都可能不相关。通常，只要有两个分支就足够了：一个用于最新的指令集，另一个与最多5年或10年前的 CPU 兼容。CPU 市场发展如此之快，以至于今天全新的 CPU 将在明年成为主流。
+7. <u>忽略虚拟化</u>。CPUID 指令能够真正表示已知 CPU 型号的时代已经结束了。虚拟化变得越来越重要。虚拟处理器会减少内核的数量，以便为同一机器上的其他虚拟处理器保留资源。虚拟处理器可能会给出一个错误的型号来反映这一点，或者为了与一些遗留软件兼容。它甚至可能有一个错误的供应商字符串。在未来，我们可能还会看到仿真处理器和FPGA软核不对应于任何已知的硬件 CPU。这些虚拟处理器可以有任何品牌和型号。我们唯一可以依赖的 CPUID信息是特性信息，比如支持的指令集和缓存大小。
+
+幸运的是，这些问题的解决方案在大多数情况下都非常简单：CPU调度器应该拥有尽可能少的分支，并且分派应该基于 CPU 支持的指令集，而不是 CPU 的品牌、系列和型号。
+
+我见过许多 CPU调度很差劲的例子。例如，Mathcad 的最新版本（v15.0）使用的是Intel的 Math Kernel LIbrary 6年前的版本（MKL v7.2）。这个库有一个 CPU 调度器，它不能以最优的方式处理现在的 CPU。如果将CPUID 人为地更改为旧的 Pentium 4，在当前 Intel CPU 上，某些任务的速度可以提高 33% 以上。原因是 MKL 中的 CPU 调度程序依赖于 CPU 的族号（family number），旧 Pentium 4的CPU族号是15，而所有较新的Intel CPU的族号为6！当 CPUID 被操纵为假的 Intel Pentium 4时，在非Intel CPU 上执行这项任务的速度提高了一倍多。更糟糕的是，许多软件产品无法识别 VIA 处理器，因为这个品牌在软件开发时不太受欢迎。
+
+对不同品牌 CPU 的不平等的 CPU 调度机制可能会成为一个严重的法律问题，正如您可以在我的[博客](https://www.agner.org/optimize/blog/read.php?i=49)中看到的那样。在这里，您还可以找到更多关于糟糕的 CPU 调度的例子。
+
+显然，您应该只对程序的最关键部分使用 CPU 调度 —— 最好隔离到单独的函数库中。只有当指令集相互不兼容时，才能使用将整个程序转换成多个版本这样激进的解决方案。一个具有定义良好的功能和接口的函数库比一个把调度分支分散在源文件中的程序更容易管理和测试、维护和验证。
+
+## 13.2 特定号的调度
+在某些情况下，特定的代码实现在特定型号的处理器表现糟糕。您可以忽略这个问题，并假设在下一个处理器型号将表现更好。如果这个问题太重要而不能忽略，那么解决方案是为该版本代码表现的不好的处理器型号创建一个负面清单（negative list）。为该版本代码表现良好的处理器型号列一个可用清单（positive list）不是一个好主意。原因是，每当市场上出现新的、更好的处理器时，都需要更新可用清单。这样一个清单几乎肯定会在您的软件生命周期内被淘汰。另一方面，在下一代处理器表现更好的情况下，负面清单不需要更新。每当处理器有一个特定的弱点或瓶颈时，生产者很可能会试图修复这个问题，使下一个型号表现的更好。
+
+请再次记住，大多数软件在大部分时间内都是在软件编码时未知的处理器上运行的。如果软件包含运行最高级代码版本的处理器型号的可用清单，那么它将在编程时未知的处理器上运行较差的版本。但是，如果软件包含一个负面清单，其中列出了避免运行高级版本的处理器模型，那么它将在编程时未知的所有较新的模型上运行高级版本。
+
+## 13.3 棘手的例子
+在大多数情况下，可以根据所支持的指令集、缓存大小等 CPUID 信息选择最优分支。但是，在一些情况下，有不同的方法可以做相同的事情，而 CPUID 指令没有提供关于哪种实现最好的必要信息。这些情况有时用汇编语言处理。下面是一些例子：
+1. <u>`strlen` 函数</u>。字符串长度函数遍历字符串的所有字节以找到第一个值为零字节。好的实现使用 XMM 寄存器每次测试16个字节，然后使用 `BSF`（bit scan forward）指令在16个字节的块中定位第一个值为零字节。有些 CPU 对这个位扫描指令的实现特别慢。单独测试过 `strlen` 函数的程序员对该函数在位扫描指令很慢的 CPU 上的性能不满意，并为特定的CPU型号 实现了一个单独的版本。但是，我们必须考虑到，对于每个函数调用，位扫描指令只执行一次，因此您必须在性能变得重要之前调用该函数数十亿次，而很少有程序会这样做。因此，为位扫描指令的很慢的 CPU 编写特殊版本的 `strlen` 函数是不值得的。我的建议是使用位扫描指令，并期待这是在未来的 CPU 上最快的解决方案。
+2. <u>一般大小的执行单元</u>。向量寄存器已经从64位的 MMX 增加到了128位的 XMM 和256位的 YMM 寄存器。第一个支持128位向量寄存器的处理器实际上执行单元只有64位。每个128位操作被分成两个64位操作，因此使用更大的向量大小几乎没有任何速度上的优势。后来的型号拥有128位的完整执行单元，因此速度更快。同样，最初支持256位指令的处理器将256位读取操作拆分为两个128位读取操作。对于即将到来的512位指令集以及将来寄存器大小的进一步扩展，也可以期望得到相同的结果。通常，新寄存器大小的全部优势只出现在支持它的第二代处理器中。在某些情况下，向量实现仅在具有全尺寸执行单元的 CPU 上是最优的。问题是CPU调度程序很难知道最大的向量寄存器是以半速还是全速处理的。这个问题的一个简单解决方案是，只有在支持下一个更高的指令集时才使用新的寄存器大小。例如，只有在这种应用程序中支持 AVX2 时才使用 AVX。或者，使用一个不利于使用最新指令集的处理器负面清单。
+3. <u>高精度数学</u>。用于高精度数学的库允许用大整数加法。这通常在循环中使用 `ADC`（带进位）指令完成，其中进位必须从一个迭代传递到下一个迭代中。进位可以保存在进位标志中，也可以保存在寄存器中。如果进位保存在进位标志中，那么循环分支必须依赖使用零标志的指令，并且不修改进位标志（例如 `DEC`、`JNZ`）。在将标志寄存器的分割为进位标志位和零标志位存在问题的老版本 Intel CPUs上，由于所谓的部分标志位（so-called partical flags）在处理器上存在问题，这个方案可能会导致很长的延迟，但在 AMD CPUs 上不存在这个问题（详见手册3：“The microarchitecture of Intel, AMD and VIA CPUs”）。这是少数几种使根据 CPU 品牌变得合理的情况之一。在特定品牌的最新 CPU 上表现良好的版本也可能使未来同样品牌其它型号的最优选择。较新的处理器支持用于高精度数学的 `ADX` 指令。
+4. <u>内存复制</u>。复制内存块有几种不同的方法。这些方法在手册2“Optimizing subroutines in assembly language”第17.9节“移动数据块”中进行了讨论，其中还讨论了在不同的处理器上哪种方法速度最快。在 C++ 程序中，您应该选择一个最新的，很好地实现了 `memcpy` 函数的函数库。由于存在不同的微处理器、不同的对齐方式和不同大小的需要复制的数据块等很多不同情况，因此惟一合理的解决方案是使用一个具有 CPU 调度的标准函数库。这个函数非常重要，并且被广泛使用，大多数函数库的这个函数都有 CPU 调度功能，尽管不是所有库都有最好的和最新的解决方案。编译器在复制大型对象时可能会隐式地使用 `memcpy` 函数，除非有一个复制构造函数以其他方式指定。
+
+在诸如此类的困难情况下，重要的是要记住，您的代码很可能大部分时间在编程时还未知的处理器上运行。因此，重要的是要考虑哪种方法可能对未来处理器效果最好,并所有未知的，但支持必要的指令集的处理器选择该方法。如果问题在未来由于微处理器硬件设计的总体改进而消失，那么就不值得花费精力来根据复杂的条件或者具体 CPU 型号的清单来编写 CPU 调度器。
+
+最终的解决方案的选择将需要性能测试，该测试度量关键代码的每个版本的速度，以查看在实际处理器上哪个解决方案是最优的。然而，这涉及到时钟频率可能的动态变化，以及由于中断和任务切换而导致测量不稳定的问题。因此，为了做出可靠的决策，有必要对不同的版本进行多次交替测试。
+
+## 13.4 测试和维护
+当软件使用 CPU 调度时，有两件事情需要测试：
+1. 通过使用特定版本的代码，你在速度上获得了多少增益。
+2. 检查所有版本代码是否正确工作。
+
+
+速度测试最好是针对每个代码分支所特定的 CPU 类型进行。换句话说，如果您想优化几个不同的 CPU，就需要在几个不同的 CPU 上进行测试。
+
+另一方面，没有必要使用许多不同的 CPU 来验证所有代码分支是否正确工作。一个使用低版本指令集的代码分支仍然可以在一个支持高版本指令集的 CPU 上运行。因此，您只需要一个支持最高版本指令集的 CPU 来测试所有分支的正确性。因此，建议在代码中添加一个测试特性，使您能够覆盖 CPU 调度并运行任何代码分支来进行测试。
+
+如果代码是作为函数库或单独的模块实现的，那么编写一个可以单独调用所有代码分支并测试其功能的测试程序是很方便的。这对以后的维护非常有帮助。然而，这不是一本关于测试理论的教科书。关于如何测试软件模块的正确性的建议一定可以在其他地方找到。
+
+## 13.5 实现
+CPU 调度机制可以在不同的地方实现，在不同的时间做出调度决策：
+
+1. <u>在每次调用时调度</u>。使用分支树或者 `switch` 语句为关键函数选择合适的版本。每次调用关键函数时都会判断分支。这存在需要花费时间去判断分支的问题。
+2. <u>在第一次调用时调度</u>。通过函数指针调用函数，该指针最初指向一个调度器。调度器更改函数指针并使其指向函数的正确版本。这样做的好处是，在函数从未被调用时，调度器不会花费时间决定使用哪个版本。下面的**示例13.1**演示了这种方法。
+3. <u>在初始化时生成指针</u>。程序或函数库有一个初始化路径，该初始化路径在第一次调用关键函数之前调用。初始化路径将函数指针设置为函数的正确版本。这样做的好处是，函数调用的响应时间是一致的。
+4. <u>每个代码版本都在一个单独的动态链接库（*.dll 或 *.so）中实现</u>。程序有一个初始化例程，它加载库的适当版本。如果库非常大，或者必须使用不同的编译器编译不同的版本，则该方法非常有用。
+5. <u>在加载阶段调度</u>。程序使用一个过程链接表（**PLT**），过程连接表在程序加载时候初始化。这个方法需要操作系统的支持，再最新版本的 Linux 系统中可用（Mac OS 也许也可以），见下面第132页（TODO）。
+6. <u>在安装时调度</u>。每个代码版本都在一个单独的动态链接库（*.dll 或 *.so）中实现。安装程序创建适当版本库的符号链接，应用程序通过符号链接加载库。
+7. <u>使用不同的可执行文件</u>。如果指令集互不相容，可以使用这种方法。您可以为32位和64位系统创建单独的可执行程序。程序的适当版本可以在安装过程中选择，也可以通过可执行文件选择。
+
+如果关键代码的不同版本使用不同的编译器编译，那么建议对所有关键代码调用的库函数使用静态链接，这样你不需要分发应用程序中属于不同编译器的所有代码。
+
+各种指令集的可用性可以通过调用系统函数来确定（例如：在 Windows 中可以调用 `IsProcessorFeaturePresent`）。或者，你可以直接调用 CPUID 指令，也可以使用我提供的[函数库](www.agner.org/optimize/asmlib.zip)中的 CPU 检测函数，这个函数的名字是  ` InstructionSet()`。下面的这个例子将展示如何使用  `InstructionSet()` 实现在第一次调用方法时进行 CPU 调度：
+
+```C++
+// Example 13.1
+// CPU dispatching on first call
+
+// Header file for InstructionSet()
+#include "asmlib.h"
+
+// Define function type with desired paramet
+typedef int CriticalFunctionType(int parm1, int parm2);
+
+// Function prototype
+CriticalFunctionType CriticalFunction_Dispatch;
+
+// Function pointer serves as entry point.
+// After first call it will point to the appropriate function version
+CriticalFunctionType * CriticalFunction = &CriticalFunction_Dispatch;
+
+// Lowest version
+int CriticalFunction_386(int parm1, int parm2) {...}
+
+// SSE2 version
+int CriticalFunction_SSE2(int parm1, int parm2) {...}
+
+// AVX version
+int CriticalFunction_AVX(int parm1, int parm2) {...}
+
+// Dispatcher. Will be called only first time
+int CriticalFunction_Dispatch(int parm1, int parm2)
+{
+    // Get supported instruction set, using asmlib library
+    int level = InstructionSet();
+    // Set pointer to the appropriate version (May use a table
+    // of function pointers if there are many branches):
+    if (level >= 11)
+    {
+        // AVX supported
+        CriticalFunction = &CriticalFunction_AVX;
+    }
+    else if (level >= 4)
+    {
+        // SSE2 supported
+        CriticalFunction = &CriticalFunction_SSE2;
+    }
+    else
+    {
+        // Generic version
+        CriticalFunction = &CriticalFunction_386;
+    }
+    // Now call the chosen version
+    return (*CriticalFunction)(parm1, parm2);
+}
+
+int main()
+{
+    int a, b, c;
+    ...
+    // Call critical function through function pointer
+    a = (*CriticalFunction)(b, c);
+    ...
+    return 0;
+}
+
+```
+
+函数  `InstructionSet()` 包含在函数库 [asmlib](https://www.agner.org/optimize/asmlib.zip)。这个函数是独立于操作系统的，它检查 CPU 和操作系统是否支持不同的指令集。**例13.1**中 `CriticalFunction` 的不同版本可以在必要时放在单独的模块中，每个模块都为特定的指令集编译。
+
+## 13.6 GNU 编译器中的 CPU 调度
+Linux 中引入了一个名为“Gnu 间接函数”的特性，并被2010年的 Gnu 实用工具所支持。该特性用于 CPU 调度，并在Gnu C 库中被使用。它需要编译器、链接器和加载器的支持（*binutils*的版本为 2.20, `glibc` 版本为 2.11的 *ifunc* 分支)。
+
+使用这个特性按照下述方法以一种普通的方式使用过程连接表（PLT)：同一函数有两个或多个版本，每个版本都针对特定的 CPU 或其他硬件条件进行了优化。调度函数决定使用哪个函数，并返回指向所需函数的指针。PLT 入口最初指向调度函数。当程序加载时，加载器调用调度函数，并用从调度函数获得的指针替换 PLT 入口。这将使对函数的任何调用转到所需的版本。注意，调度函数通常在程序开始运行之前调用，并且在调用任何构造函数之前调用。因此，调度函数不能依赖于正在初始化的任何其他东西。即使从未调用被调度函数，也很可能调用调度函数。
+
+不幸的是，目前在 [Gnu 手册](http://gcc.gnu.org/onlinedocs/gcc/Function-Attributes.html)中描述的语法并不能正确工作。相反，可以使用以下方案：
+
+```C++
+// Example 13.2. CPU dispatching in Gnu compiler
+// Same as example 13.1, Requires binutils version 2.20 or later
+
+// Header file for InstructionSet()
+#include "asmlib.h"
+
+// Lowest version
+int CriticalFunction_386(int parm1, int parm2) {...}
+
+// SSE2 version
+int CriticalFunction_SSE2(int parm1, int parm2) {...}
+
+// AVX version
+int CriticalFunction_AVX(int parm1, int parm2) {...}
+
+// Prototype for the common entry point
+extern "C" int CriticalFunction ();
+__asm__ (".type CriticalFunction, @gnu_indirect_function");
+
+// Make the dispatcher function.
+typeof(CriticalFunction) * CriticalFunctionDispatch(void)
+    __asm__ ("CriticalFunction");
+typeof(CriticalFunction) * CriticalFunctionDispatch(void)
+{
+    // Returns a pointer to the desired function version
+    // Get supported instruction set, using asmlib library
+    int level = InstructionSet();
+    // Set pointer to the appropriate version (May use a table
+    // of function pointers if there are many branches):
+    if (level >= 11)
+    {
+        // AVX supported
+        return &CriticalFunction_AVX;
+    }
+    if (level >= 4)
+    {
+        // SSE2 supported
+        return &CriticalFunction_SSE2;
+    }
+    // Default version
+    return &CriticalFunction_386;
+}
+
+int main()
+{
+    int a, b, c;
+    ...
+    // Call critical function
+    a = CriticalFunction(b, c);
+    ...
+    return 0;
+}
+```
+
+在 Gnu C 函数库中，间接函数特性被用于一些特别关键的函数。
+
+## 13.7 Intel 编译器中的 CPU 分派
+
+Intel 编译器有一个特性，可以为一个函数的生成多个版本对应多个 Intel CPU。每次调用方法都使用分派。当调用该函数时，为函数分配所期望的版本。通过使用选项 */QaxAVX* 或 *-axAVX* 编译模块，可以对模块中所有合适的函数进行自动分派。甚至会给非关键函数也生成多个版本。通过使用指令 `_declspec(cpu_dispatch(…))`，可以只对速度关键的函数执行分派。有关详细信息，请参阅 Intel C++ 编译器文档。注意，Intel 编译器中的 CPU 分派机制只适用于 Intel CPU，而不适用于 AMD 和 VIA 等其他品牌的 CPU。下一节展示了一种解决 CPU 检测机制中的这种限制和其他缺陷的方法。
+
+Intel 编译器中的 CPU 分派机制的效率低于 Gnu 编译器的机制，因为它对关键函数的每次调用都进行分派。在某些情况下，每次调用函数时，Intel 的机制都会执行一系列分支，而 Gnu 机制则在过程链接表中存储指向所需版本的指针。如果一个分派函数调用另一个分派函数，那么后者的分派分支也将被执行，即使此时已经知道 CPU 的类型。这可以通过内联后一个函数来避免，但是更好的方法是像**示例13.1** 中（page 130， TODO）那样显式地执行 CPU 分派。
+
+Intel 编译器和函数库具有自动 CPU 分派的特性。针对不懂的处理器和指令集，很多 Intel 函数库都有几个不同的版本。同样的，编译器可以使用自动 CPU 分派为用户写的代码生成多个版本的代码。
+
+不幸的是，Intel 编译器的 CPU 检测机制存在几个缺陷：
+1. 只有在运行在 Intel 处理器上时才会选择代码的最佳版本。CPU 调度程序在检查它支持的指令集之前，检查处理器是否是 Intel 的。如果处理器不是 Intel 的，则选择较差版本的代码，即使处理器与较好版本的代码兼容。这可能导致在 AMD 和 VIA 处理器上的性能急剧下降。
+2. 显式 CPU 分派只适用于 Intel 处理器。对于非 Intel 处理器，通过简单地执行一个非法操作，使分派器发出错误信号，然后使程序崩溃。
+3. CPU 分派器 不检查操作系统是否支持 XMM 寄存器。它将在不支持 SSE 的旧操作系统上崩溃。
+
+由 Intel 发布的几个函数库具有类似的 CPU 分派机制，其中一些函数库还以次优方式处理非 Intel CPU。
+
+英特尔 CPU 分派器以非最佳方式处理非英特尔 CPU 的事实已经成为一个严重的法律问题。详情请参阅我的[博客](http://www.agner.org/optimize/blog/read.php?i=49)。
+
+Intel 编译器的行为使程序员陷入了一个糟糕的困境。您可能更喜欢使用 Intel 编译器，因为它具有许多高级优化特性，而且您可能希望使用经过良好优化的 Intel 函数库，但是谁愿意给程序加上一个说它在非 Intel机器上不能很好地工作的标签呢？
+
+这个问题可能的解决方案如下所列：
+1. 使用特定的指令集编译，例如 */arch:SSE2*。编译器将为这个指令集生成最优代码，并且大多数库函数直插入 SSE2 版本，而不进行 CPU 分派。测试一下程序是否在非英特尔 CPU 上令人满意地运行。如果没有，则可能需要替换 CPU 检测功能，如下所述。该程序将与不包含当前选择的指令集的旧版本微处理器不兼容。
+2. 为代码中最关键的部分创建两个或多个版本，并使用指定的合适指令集分别编译它们。在代码中插入显式的 CPU 分派，以调用适合其运行的微处理器的版本。
+3. 替换或绕过英特尔编译器的 CPU 检测功能。该方法将在下面一节中讨论。
+4. 直接调用特定于 CPU 版本的库函数。特定于 CPU 的函数的名称带有后缀，例如对于 AVX 指令集后缀为 *.R*。这些后缀在手册5：“calling conventions”中的**表19**中列出。函数名中符号**.** 在 C++ 中是不被允许的，因此您需要使用汇编代码或 [objconv](https://www.agner.org/optimize/#objconv) 或类似的实用程序来修改对象文件中的名称。
+5. 使用在所有品牌 CPU 上都运行良好的函数库。
+
+如果程序中最耗时的部分包含 自动 CPU 分派或内存密集型函数，如 `memcpy`、`memmove`、`memset`或数学函数，如`pow`、`log`、`exp`、`sin`等，则可以使用上述一种或多种方法改进非 intel 处理器的性能。
+
+### <u>重载 Intel CPU 检测功能</u>
+在某些情况下，CPU 检测功能有两个版本，一个区分 CPU 品牌，另一个不区分。
+
+没有文档的 Intel 库函数 `_intel_cpu_features_init()` 设置变量 `_intel_cpu_feature_indicator`，其中每个位表示 Intel CPU上特定的 CPU 特性。只需将这些变量设置为零，然后调用`_intel_cpu_features_init_x()`，就可以绕过对 CPU 品牌的检查。
+
+在其他情况下，可以通过使另一个具有相同名称的函数来替换 Intel 函数库和编译器生成的代码中的 CPU 检测函数。在 Windows 操作系统，这需要使用静态链接（例如，选项 */MT*）。在 Linux 和 Mac 系统中，静态链接和动态链接都能起作用。
+
+[http://www.agner.org/optimize/asmlib.zip](http://www.agner.org/optimize/asmlib.zip) 中的文件包含这些方法的完整代码示例。
+
+如果您正在使用 Intel 编译器，那么请确保在编译启动代码和 `main()` 时没有任何限制 CPU 品牌的选项。然后，代码的关键部分可以放在一个单独的 C 或 C++文件中，并为所需的指令集编译。如果这些方法中有任何一种绕过了 CPU 品牌检查，那么关键部分就可以在任何 CPU 品牌上得到最佳的性能。
+
+当 Intel 函数库与其他编译器一起使用时，这些方法也可以工作。包括叫做 MKL、VML 和 SVML 的函数库。IPP 函数库不需要任何补丁。
+
+注意，这些方法是基于我自己的研究，而不是基于公开的信息。它们在Intel编译器版本 7 到 14 的测试中运行良好，每个版本都有一些变化。这些示例适用于 Windows 和 Linux, 32位和64位。它们还没有在 Mac 系统中进行测试。
+
+# 14 具体的优化主题
+
+## 14.1 使用查找表
+如果列表是被缓存过的，从表中读取一个常数的值是很快的。通常情况下在缓存一级缓存的列表读取操作只需要花费几个时钟周期。如果函数只有有限数量的可能输入，我们可以利用这个事实，用查找表来替换函数调用。
+
+让我们以整数阶乘函数（$n!$）为例。唯一允许的输入是从0到12的整数。更高的输入会导致溢出，负的输入导会得到无穷大。阶乘函数的一个典型实现是下面这样的：
+
+```C++
+// Example 14.1a
+int factorial (int n)
+{
+    // n!
+    int i, f = 1;
+    for (i = 2; i <= n; i++)
+        f *= i;
+    return f;
+}
+```
+这种计算需要 $n-1$次乘法，而这将会花费当长的时间。如果使用查找表的话效率会更高：
+
+```C++
+// Example 14.1b
+int factorial (int n)
+{
+    // n!
+    // Table of factorials:
+    const int FactorialTable[13] = {1, 1, 2, 6, 24, 120, 720,
+        5040, 40320, 362880, 3628800, 39916800, 479001600};
+    if ((unsigned int)n < 13)
+    {
+        // Bounds checking (see page 137)
+        return FactorialTable[n]; // Table lookup
+    }
+    else
+    {
+        return 0; // return 0 if out of range
+    }
+}
+```
+
+该实现使用查找表，而不是每次调用函数时重新计算值。我在这里添加了一个界限检查，因为当 `n` 是数组索引时，`n` 超出范围的后果可能比n是循环计数时更严重。边界检查的方法在下面的137页（TODO）解释。
+
+表应该声明为 `const`，以便启用常量传播和其他优化。您可以将函数声明为内联的。
+
+用查找表替换函数，在可能输入的数量有限且没有缓存问题的大多数情况下是有利的如果你期望每次调用后列表从缓存中被擦出，以及计算函数所花费的时间小于重新加载值从内存的时间，加上程序的其他部分占据缓存所导致的时间开销之和，那么使用查找表是没有好处的。
+
+查找表无法使用当前的指令集进行向量化。如果这妨碍了更快的向量化代码，那么就不用使用查找表。
+
+在静态内存中存储数据可能会导致缓存问题，因为静态数据可能分散在不同的内存地址。如果缓存是一个问题，那么将表从静态内存复制到最内层循环外的栈内存上可能是有用的。我们可以在函数中但在最内层循环之外声明表（不使用 `static` 关键字）：
+
+```C++
+// Example 14.1c
+void CriticalInnerFunction ()
+{
+    // Table of factorials:
+    const int FactorialTable[13] = {1, 1, 2, 6, 24, 120, 720,
+        5040, 40320, 362880, 3628800, 39916800, 479001600};
+    ...
+    int i, a, b;
+    // Critical innermost loop:
+    for (i = 0; i < 1000; i++)
+    {
+        ...
+        a = FactorialTable[b];
+        ...
+    }
+}
+
+```
+
+**例 14.1c**中的 `FactorialTable` 在调用 `CriticalInnerFunction` 时从静态内存中复制到栈上。编译器将表存储在静态内存中，并在函数开始的地方插入代码，将表复制到栈内存中。当然，复制表需要额外的时间，但是当它位于关键的最内层循环之外时，这是被允许的。循环将使用存储在栈内存中的表的副本，这与其它本地变量相邻，因此缓存效率可能比静态内存更高。
+
+如果您不喜欢手工计算表值并将值插入代码中，那么您当然可以让程序进行计算。只要只需要一次计算，那么计算表所花费的时间并不重要。有人可能会说，在程序中计算表比直接输入值更安全，因为手写表中的输入错误可能无法被检测到。
+
+查找表的原理可用于程序在两个或多个常量之间进行选择的任何情况。例如，在两个常量之间进行选择的分支可以被一个包含两个条目的表替换。如果分支的可预测性很差，这可能会提高性能。例如：
+
+```C++
+// Example 14.2a
+float a; int b;
+a = (b == 0) ? 1.0f : 2.5f;
+```
+如果我们假设 `b` 总是 0 或 1，并且它的值可预测性很差，那么使用查找表来代替分支是有利的：
+
+```C++
+// Example 14.2b
+float a; int b;
+const float OneOrTwo5[2] = {1.0f, 2.5f};
+a = OneOrTwo5[b & 1];
+```
+
+在这里，因为安全性的原因，我将 `b` 按位与上 1，`b & 1`的值肯定只有 0 或 1（参见第138页，TODO）。          如果 `b` 的值肯定为 0 或 1，那么就可以省略对 `b` 的额外检查。使用 `a = OneOrTwo5[b!=0]`，同样可以正确运行，但是效率稍低。但是，当 `b` 是 `float` 或 `double` 类型时，这种方法效率很低，因为我测试的所有编译器对`OneOrTwo5[b!=0]` 的实现都是  `OneOrTwo5[(b!=0) ? 1 : 0]`，在这种情况下，我们无法去掉分支。当 `b` 是浮点数时，编译器使用不同的实现似乎不合逻辑。我想，原因是编译器制的开发人员假定浮点数比较比整数比较更容易预测。对于表达式 `a = 1.0f + b * 1.5f`，当 `b` 是一个浮点数时是高效的，但如果 `b` 是一个整数则效率较低，因为整数到浮点数的转换比查找表花费更多的时间。
+
+将查找表作为 `switch` 语句的替代尤其有利，因为 `switch` 语句的可预测性经常较差。例如：
+
+```C++
+// Example 14.3a
+int n;
+switch (n)
+{
+    case 0:
+        printf("Alpha"); break;
+    case 1:
+        printf("Beta"); break;
+    case 2:
+        printf("Gamma"); break;
+    case 3:
+        printf("Delta"); break;
+}
+```
+
+这可以使用查找表来提升效率：
+
+```C++
+// Example 14.3b
+int n;
+char const * const Greek[4] = {
+    "Alpha", "Beta", "Gamma", "Delta"
+    };
+if ((unsigned int)n < 4)
+{
+    // Check that index is not out of range
+    printf(Greek[n]);
+}
+```
+表的声明有两个 `const`，因为它们指向的指针和文本都是常量。
+
+## 14.2 边界检查
+在 C++ 中，通常有必要检查数组索引是否超出范围。这常常看起来是这样的：
+
+```C++
+// Example 14.4a
+const int size = 16; int i;
+float list[size];
+...
+if (i < 0 || i >= size)
+{
+    cout << "Error: Index out of range";
+}
+else
+{
+    list[i] += 1.0f;
+}
+```
+
+`i < 0` 和 `i >= size` 这两个比较可以使用一个比较替换：
+
+```C++
+// Example 14.4b
+if ((unsigned int)i >= (unsigned int)size)
+{
+    cout << "Error: Index out of range";
+}
+else
+{
+    list[i] += 1.0f;
+}
+```
+
+当 `i` 被解释为无符号整数时，`i` 可能的负值将以一个较大的正数出现，这将触发错误条件。用一个比较替换两个比较可以加快代码的速度，因为测试一个条件相对比较昂贵，而类型转换根本不会生成额外的代码。
+
+这个方法可以扩展到一般情况下：你想要检查一个整数是否在一个特定的区间之内：
+
+```C++
+// Example 14.5a
+const int min = 100, max = 110; int i;
+...
+if (i >= min && i <= max) { ...
+```
+可以修改成：
+
+```C++
+// Example 14.5b
+if ((unsigned int)(i - min) <= (unsigned int)(max - min)) { ...
+```
+如果所需区间的长度是2的幂，则有一种更快的方法来限制整数的范围。例如：
+
+```C++
+// Example 14.6
+float list[16]; int i;
+...
+list[i & 15] += 1.0f;
+```
+
+这需要略微解释一下。`i&15` 的值肯定在 0 到 15 的区间内。如果 `i` 在这个区间之外，例如 `i = 18` ，那么 `&` 操作符（按位与）将 `i` 的二进制值截断为 4 位，结果将是 2。结果与 `i` 除上 16 的余数相同。如果我们不需要错误消息的话，这种方法在数组索引超出范围时可以防止程序错误。需要注意的是，这种方法只适用于2的幂（即2、4、8、16、32、64、……）。通过按位与上$2^{n -1}$，我们可以确保一个数的值小于 $2^n$，并且不是负的。按位与操作隔离数字中有效的低 n 位，并将所有其他位设为零。
+
+## 14.3 使用位运算符一次检查多个值
+位运算符 `&`， `|`，` ^`，` ~`， `<<`，` >>` 可以在一次操作中测试或操作整数的所有位。例如，如果 32 位整数的每个位都有特定的含义，那么可以使用 `|` 运算符在一个操作中设置多个位；你用 `&` 运算符清除或遮掩掉多个位。你可以用 `^` 运算符转换多个位。
+
+`&` 运算符对于测试单个操作中的多个条件也很有用。例如：
+
+```C++
+// Example 14.7a. Testing multiple conditions
+enum Weekdays {
+    Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday
+};
+Weekdays Day;
+if (Day == Tuesday || Day == Wednesday || Day == Friday)
+{
+    DoThisThreeTimesAWeek();
+}
+```
+
+本例中的 `if` 语句有三个条件，它们被实现为三个分支。如果将 `Sunday`、`Monday` 等常量定义为 2的幂，则可以将它们合并为一个分支：
+
+```C++
+// Example 14.7b. Testing multiple conditions using &
+enum Weekdays {
+    Sunday = 1, Monday = 2, Tuesday = 4, Wednesday = 8,
+    Thursday = 0x10, Friday = 0x20, Saturday = 0x40
+};
+Weekdays Day;
+if (Day & (Tuesday | Wednesday | Friday))
+{
+    DoThisThreeTimesAWeek();
+}
+```
+
+通过在**例14.7b**中给每个常数的值设置成 一个2的幂，我们实际上是在使用 `Day` 中的每一位来表示星期几。我们可以用这种方法定义的常量的最大数量等于整数中的位的数量，通常是 32。在 64 位系统中，我们可以使用 64 位整数，这几乎没有任何性能上的损失。
+
+在**例 14.7b**中的表达式  `(Tuesday | Wednesday | Friday)`  被编译器转换成 `0x2C`，这样的话 `if` 条件就可以通过一个 `&` 操作来计算，而这是很快的。如果变量 `Day` 中设置了 `Tuesday`、`Wednesday` 或 `Friday` 中的的任何位，`&` 操作的结果将是非零的，因此将被视为真。
+
+注意布尔运算符 `&&`， `||`， `!` 以及相应的位运算符 `&`， `|`， `~`。布尔运算符产生一个结果，true（1）或 false （0），且第二个操作数只在需要时计算。位操作符在应用于32位整数时会产生32个结果，它们总是对两个操作数求值。然而，位运算符的计算速度比布尔运算符快得多，因为只要操作数是整数表达式而不是布尔表达式，它们就不需要使用分支。
+
+当使用整数作为布尔向量时，位操作符可以做很多事情，而且这些操作非常快。这在有许多布尔表达式的程序中很有用。无论常量是用 `enum`、`const` 还是 `#define` 定义的，都不会影响性能。
+
+## 14.4  整数乘法
+整数乘法比加法和减法需要更长的时间（3 - 10个时钟周期，取决于处理器）。编译器优化通常会用一个常量替换整数乘法，并结合加法和移位操作。乘以2的幂要比乘以其他常数快，因为它可以通过移位操作完成。例如，`a*16` 使用 `a << 4`计算，`a * 17` 使用 ` (a << 4) + a` 计算。当与常数相乘时，你可以通过使用2的幂来利用这个优势。编译器也有快速乘以 3、5 和 9 的方法。
+
+在计算数组元素的地址时，会有隐式的乘法计算。在某些情况下，当因子为2的幂时，这个乘法会更快。例如：
+
+```C++
+// Example 14.8
+const int rows = 10, columns = 8;
+float matrix[rows][columns];
+int i, j;
+int order(int x);
+...
+for (i = 0; i < rows; i++)
+{
+    j = order(i);
+    matrix[j][0] = i;
+}
+```
+这里，`matrix[j][0]` 的地址在内部使用下面的式子计算：
+
+`(int)&matrix[0][0] + j * (columns * sizeof(float))`。
+
+现在，要乘以 `j` 的因子是 `(cloumns * sizeof(float)) = 8 * 4 = 32`。这是 2 的幂，所以编译器可以用 `j << 5` 替换 `j * 32`。如果列的大小不是 2 的幂，那么乘法会花费更长的时间。因此，如果以无序方式访问矩阵中的行，则将矩阵中的列数设置为 2 的幂是有利的。
+
+这同样适用于结构体或类元素数组。如果以无序方式访问对象，则每个对象的大小最好是 2 的幂。例如：
+
+```C++
+// Example 14.9
+struct S1
+{
+    int a;
+    int b;
+    int c;
+    int UnusedFiller;
+};
+int order(int x);
+const int size = 100;
+S1 list[size]; int i, j;
+...
+for (i = 0; i < size; i++)
+{
+    j = order(i);
+    list[j].a = list[j].b + list[j].c;
+}
+```
+
+在这里，我们在结构体中插入了 `UnusedFiller`，以确保其大小是的 2 的幂，以使地址计算的更快。
+
+使用2的幂的优势只适用于以无序方式访问元素的情况。如果 **示例 14.8**和 **14.9** 中的代码发生了更改，以 `i` 代替 `j` 作为索引，那么编译器可以看到地址是按顺序访问的，并且可以通过在前一个地址上添加一个常量来计算每个地址（参见第72页，TODO）。在这种情况下，大小是否为2的幂并不重要。
+
+使大小为2次幂的建议并不适用于非常大的数据结构。相反，如果矩阵太大以至于缓存成为问题，则应该尽量避免大小为2的幂。如果矩阵中的列数是2的幂，并且矩阵大于缓存，那么就可以得到代价非常昂贵的缓存竞争，如第98页（TODO）所解释的那样。
+
+## 14.5 整数除法
+整数除法要比加法、减法和乘法（32位整数的时钟周期为27 - 80个，具体取决于处理器）耗时长得多。
+
+整数除以2的幂可以用移位运算来做，这样会快得多。
+
+除以一个常数比除以一个变量快的多，因为编译器优化可以通过选择合适的 n 以 $a * (2^n/b) >> n$ 来计算 $a/b$。 常量 $(2^n/b)$ 是被预先计算好的，并乘法是通过位的扩展数（extended number of bits）来完成的。该方法稍微复杂一些，因为必须添加符号和舍入误差的各种更正。该方法在手册2： "Optimizing subroutines in assembly language" 中有更详细的描述。当被除数是无符号的，该方法会快的多。
+
+以下准则可用于改进包含整数除法的代码：
+1. 整数除以常数比变量快。确保在编译时知道除数的值。
+2. 如果常数是 2 的幂的话，整数除法会更快。
+3. 当被除数是无符号时，整数除以常量会更快。
+
+例如：
+
+```C++
+// Example 14.10
+int a, b, c;
+a = b / c; // This is slow
+a = b / 10; // Division by a constant is faster
+a = (unsigned int)b / 10; // Still faster if unsigned
+a = b / 16; // Faster if divisor is a power of 2
+a = (unsigned int)b / 16; // Still faster if unsigned
+```
+
+相同的准则同样适用于取模运算：
+
+```C++
+// Example 14.11
+int a, b, c;
+a = b % c; // This is slow
+a = b % 10; // Modulo by a constant is faster
+a = (unsigned int)b % 10; // Still faster if unsigned
+a = b % 16; // Faster if divisor is a power of 2
+a = (unsigned int)b % 16; // Still faster if unsigned
+```
+
+可以利用这些指导原则，如果可能的话，可以使用一个2的幂的常数做为除数，如果确定被除数不为负数，可以将被除数更改为无符号。
+
+如果除数在编译时是未知，但程序不断重复除以同一个除数，仍然可以使用上述方法。在这种情况下，您必须在编译时（？需要确认下，应该是运行的时候把？）对 $(2^n / b)$ 等进行必要的计算。[www.agner.org/optimize/asmlib.zip](www.agner.org/optimize/asmlib.zip)中的函数库包含用于计算的各种函数。
+
+将循环计数器除以一个常数，可以用按常数将循环展开来代替：
+
+```C++
+// Example 14.12a
+int list[300];
+int i;
+for (i = 0; i < 300; i++)
+{
+    list[i] += i / 3;
+}
+```
+
+这个可以使用下面的代码替换：
+
+```C++
+// Example 14.12b
+int list[300];
+int i, i_div_3;
+for (i = i_div_3 = 0; i < 300; i += 3, i_div_3++)
+{
+    list[i] += i_div_3;
+    list[i+1] += i_div_3;
+    list[i+2] += i_div_3;
+}
+```
+
+类似的方法也可以用于避免模运算：
+
+```C++
+// Example 14.13a
+int list[300];
+int i;
+for (i = 0; i < 300; i++)
+{
+    list[i] = i % 3;
+}
+```
+
+可以被替换成：
+
+```C++
+// Example 14.13b
+int list[300];
+int i;
+for (i = 0; i < 300; i += 3)
+{
+    list[i] = 0;
+    list[i+1] = 1;
+    list[i+2] = 2;
+}
+```
+
+**示例 14.12b**和**14.13b**中的循环展开仅当循环计数可被展开因子整除时才有效。如果不能被整除，则必须在循环之外执行额外的操作：
+
+```C++
+// Example 14.13c
+int list[301];
+int i;
+for (i = 0; i < 301; i += 3)
+{
+    list[i] = 0;
+    list[i+1] = 1;
+    list[i+2] = 2;
+}
+list[300] = 0;
+```
+
+## 14.6 浮点数除法
+浮点数除法比加法、减法和乘法（20 - 45个时钟周期）耗时要长得多。
+
+浮点数除以一个常数可以用乘以常数的倒数来代替：
+
+```C++
+// Example 14.14a
+double a, b;
+a = b / 1.2345;
+```
+
+可以把这个改成：
+
+```C++
+// Example 14.14b
+double a, b;
+a = b * (1. / 1.2345);
+```
+
+编译器将在编译时计算 `(1./1.2345)` 的值，并将倒数插入到代码中，因此您将不会在除法上花费时间。一些编译器会自动将**示例 14.14a**中的代码替换为**14.14b**的，但只有在某些选项被设置为放宽浮点精度时才会这样做（请参阅第74页，TODO）。因此显式地进行这种优化更加安全。
+
+有时除法会被完全消除，例如：
+
+```C++
+// Example 14.15a
+if (a > b / c)
+```
+
+有时会被替换成：
+
+```C++
+// Example 14.15b
+if (a * c > b)
+```
+
+但是要注意这里的陷阱：如果 `c < 0`，不等式符号必须反转。如果 `b` 和 `c` 是整数，除法是不精确的，而乘法是精确的。
+
+乘法和除法可以结合在一起，例如：
+
+```C++
+// Example 14.16a
+double y, a1, a2, b1, b2;
+y = a1/b1 + a2/b2;
+```
+
+这里我们可以通过公分母来消去一个除法：
+
+```C++
+// Example 14.16b
+double y, a1, a2, b1, b2;
+y = (a1*b2 + a2*b1) / (b1*b2);
+```
+
+使用公分母的技巧甚至可以用于完全独立的除法。例如：
+
+```C++
+// Example 14.17a
+double a1, a2, b1, b2, y1, y2;
+y1 = a1 / b1;
+y2 = a2 / b2;
+```
+
+这可以这样变化：
+
+```C++
+// Example 14.17b
+double a1, a2, b1, b2, y1, y2, reciprocal_divisor;
+reciprocal_divisor = 1. / (b1 * b2);
+y1 = a1 * b2 * reciprocal_divisor;
+y2 = a2 * b1 * reciprocal_divisor;
+```
+
+## 14.7 不要将 float 和 double 混合在一起
+不管您使用的是单精度还是双精度，浮点数的计算通常花费相同的时间。但是在为64位操作系统编译的程序和使用指令集 SSE2 或更高版本编译的程序中，混合使用单精度和双精度是有代价的。例如：
+
+```C++
+// Example 14.18a
+float a, b;
+a = b * 1.2; // Mixing float and double is bad
+```
+
+C/C++ 标准规定所有浮点数常量在默认情况下都是双精度的。 所以在这个例子中， `1.2` 是一个双精度的常量。因此，在将 `b` 与双精度常数相乘之前，需要将 `b` 从单精度转换为双精度，然后再将结果转换回单精度。这些转换需要很多时间。您可以通过避免转换，来使代码达到 5 倍的效率，无论是通过使常数编程单精度或 使 `a` 和 `b`双精度编程双精度的：
+
+```C++
+// Example 14.18b
+float a, b;
+a = b * 1.2f; // everything is float
+// Example 14.18c
+double a, b;
+a = b * 1.2; // everything is double
+```
+
+当为没有 SSE2 指令集的旧处理器编译代码时，混合不同的浮点精度不会带来任何损失，但是最好在所有操作数中保持相同的精度，以防代码稍后被移植到另一个平台。
+
+## 14.8 浮点数和整数之间的转换
+
+### <u>将浮点数转换成整数</u>
+根据 C++ 语言的标准，所有从浮点数到整数的转换都使用向零的截断，而不是四舍五入。这是不幸的，因为除非使用 SSE2 指令集，否则截断要比舍入花费更长的时间。如果可能，建议启用 SSE2 指令集。SSE2 总是在64位模式下被启用。
+
+在没有 SSE2 的情况下，从浮点数到整数的转换通常需要 40 个时钟周期。如果在代码的关键部分不能避免从 `float` 或 `double` 到 `int` 的转换，那么可以使用舍入而不是截断来提高效率。这大约快了三倍。程序的逻辑可能需要修改，以补偿舍入和截断之间的差异。
+
+使用 `lrintf` 和 `lrint` 函数可以高效地将浮点数或双精度数转换为整数。不幸的是，由于对 C99 标准的争议，许多商业编译器中缺少这些这些函数。下面的**示例14.19**给出了 `lrint` 函数的实现。该函数将浮点数四舍五入到最近的整数。如果两个整数相等，则返回偶数。没有溢出检查。此函数适用于32位 Windows 和32位 Linux 以及微软、英特尔和 Gnu 编译器。
+
+```C++
+// Example 14.19
+static inline int lrint (double const x)    { // Round to nearest integer
+int n;
+#if defined(__unix__) || defined(__GNUC__)
+// 32-bit Linux, Gnu/AT&T syntax:
+__asm ("fldl %1 \n fistpl %0 " : "=m"(n) : "m"(x) : "memory" );
+#else
+// 32-bit Windows, Intel/MASM syntax:
+__asm fld qword ptr x;
+__asm fistp dword ptr n;
+#endif
+return n;
+}
+```
+
+这段代码只适用于 Intel/x86 兼容的微处理器。函数库[amslib](www.agner.org/optimize/asmlib.zip)也提供了该函数。
+
+在64位模式下或启用 SSE2 指令集时，四舍五入和截断之间的速度没有差别。缺失的功能在64位模式或启用SSE2指令集时可以按如下代码实现：
+
+```C++
+// Example 14.21. // Only for SSE2 or x64
+#include <emmintrin.h>
+static inline int lrintf (float const x)
+{
+    return _mm_cvtss_si32(_mm_load_ss(&x));
+}
+static inline int lrint (double const x)
+{
+    return _mm_cvtsd_si32(_mm_load_sd(&x));
+}
+```
+
+`示例14.21` 中的代码比其他四舍五入方法更快，但当启用 `SSE2` 指令集时，它既不比截断快，也不比截断慢。
+
+### <u>将整数转换成浮点数</u>
+整数到浮点数的转换比浮点数转换到整数快。转换时间通常在 5 到 20 个时钟周期之间。在某些情况下，对浮点变量进行简单的计算可能是有利的，以避免从整数到浮点的转换。
+
+无符号整数转换为浮点数的效率低于有符号整数转换成浮点数。如果无符号整数转换为有符号整数不会导致溢出，那么在转换为浮点数之前将无符号整数转换为有符号整数效率会更高。例如：
+
+```C++
+// Example 14.22a
+unsigned int u; double d;
+d = u;
+```
+
+如果你确定$u < 2^{31}$，那么在转换为浮点数之前先将其转换为有符号的:
+
+```C++
+// Example 14.22b
+unsigned int u; double d;
+d = (double)(signed int)u;
+```
+
+
+## 14.9 使用整数操作来操作浮点型变量
+根据 IEEE 754 (1985) 标准，浮点数以二进制表示形式存储。几乎在所有现代微处理器和操作系统中都使用这个标准（一些非常老的DOS编译器除外）。
+
+`float`、`double` 和 `long double` 的表示法反映了$\pm 2^{eee}.1.ffff$的浮点值。$\pm$表示符号，$eee$ 是指数，$fffff$ 是分数形式的二进制小数。符号位存储为单个位，0 表示正数，1 表示负数。指数存储为偏置二进制整数，分数存储为二进制数。如果可能的话，指数总是规格化的，所以小数点前的值是 1。这个“1”不包括在表示形式中，除非是 `long double` 类型。格式可以表示如下：
+
+```C++
+struct Sfloat
+{
+    unsigned int fraction : 23; // fractional part
+    unsigned int exponent : 8; // exponent + 0x7F
+    unsigned int sign : 1; // sign bit
+};
+
+struct Sdouble
+{
+    unsigned int fraction : 52; // fractional part
+    unsigned int exponent : 11; // exponent + 0x3FF
+    unsigned int sign : 1; // sign bit
+};
+
+struct Slongdouble
+{
+    unsigned int fraction : 63; // fractional part
+    unsigned int one : 1; // always 1 if nonzero and normal
+    unsigned int exponent : 15; // exponent + 0x3FFF
+    unsigned int sign : 1; // sign bit
+};
+
+```
+
+非零浮点数的值可以使用下面的方式计算：
+
+```mathjax
+
+$$
+floatvalue = (-1)^{sign}*2^{exponent-127}*(1+fraction*2^{-23}),
+$$
+
+$$
+doublevalue = (-1)^{sign}*2^{exponent-1023}*(1+fraction*2^{-52}),
+$$
+
+$$
+longdoublevalue = (-1)^{sign}*2^{exponent-16383}*(1+fraction*2^{-63}).
+$$
+
+```
+如果除符号位之外的所有位都为 0，则值为 0。有没有符号位都可以是 0。
+
+浮点格式是标准化的这一事实允许我们使用整数操作直接操作浮点表示的不同部分。这可能是一个优势，因为整数操作比浮点操作快。只有当你确信你知道你在做什么时，你才应该使用这些方法。有关注意事项，请参阅本节的末尾。
+
+我们只需要反转一个符号位就可以改变浮点数的符号：
+
+```C++
+// Example 14.23
+union
+{
+    float f;
+    int i;
+} u;
+u.i ^= 0x80000000; // flip sign bit of u.f
+```
+
+我们可以将符号位设置成0以得到绝对值：
+
+```C++
+// Example 14.24
+union
+{
+    float f;
+    int i;
+} u;
+u.i &= 0x7FFFFFFF; // set sign bit to zero
+```
+
+我们可以通过测试除符号位以外的所有位来检查浮点数是否为零：
+
+```C++
+// Example 14.25
+union
+{
+    float f;
+    int i;
+} u;
+if (u.i & 0x7FFFFFFF)
+{
+    // test bits 0 - 30
+    // f is nonzero
+}
+else 
+{
+    // f is zero
+}
+```
+
+我们对指数部分加上 $n$ 就可以将一个非零浮点数乘上 $2^n$：
+
+```C++
+// Example 14.26
+union
+{
+    float f;
+    int i;
+} u;
+int n;
+if (u.i & 0x7FFFFFFF)
+{
+    // check if nonzero
+    u.i += n << 23; // add n to exponent
+}
+```
+
+**示例 14.26**不会检查溢出，而且只有$n$是整数时才能有用。当没有下溢风险时，你可以对指数部分减去 $n$ 以达到除以 $2^n$的目的。
+
+```C++
+// Example 14.27
+union
+{
+    float f;
+    int i;
+} u, v;
+if (u.i > v.i)
+{
+    // u.f > v.f if both positive
+}
+```
+
+ 在 **例 14.27**假设我们知道 `u.f`，`v.f`  都是正的。如果两者都是负数，或者其中一个为 0，另一个为 -0（符号位为0），则会失败。
+
+我们可以将符号位移出来比较绝对值：
+
+```C++
+// Example 14.28
+union
+{
+    float f;
+    unsigned int i;
+} u, v;
+if (u.i * 2 > v.i * 2)
+{
+    // abs(u.f) > abs(v.f)
+}
+```
+
+**例 14.28**中乘以 2 将移出符号位，使其余位表示浮点数绝对值的单调递增函数。
+
+我们可以通过设置分数部分的位将在区间 $0 <= n < 2^{23}$的整数转换成在区间 $[1.0, 2.0)$的浮点数：
+
+```C++
+// Example 14.29
+union
+{
+    float f;
+    int i;
+} u;
+int n;
+u.i = (n & 0x7FFFFF) | 0x3F800000; // Now 1.0 <= u.f < 2.0
+```
+
+该方法对随机数生成器非常有用。
+
+通常，如果浮点变量存储在内存中，那么以整数的形式访问它会更快，但如果它是寄存器变量，则不会更快。`union` 强制变量存储在内存中，至少是临时存储。因此，如果相同变量使用寄存器可以使其它临近代码获益时，那么使用上述示例中的方法将没有好处。
+
+在这些例子中，我们使用 `union` 而不是指针的类型转换，时因为这种方法更安全。指针的类型转换可能不适用于遵循标准 C 的严格别名规则的编译器，该规则指定不同类型的指针不能指向同一对象，`char` 指针除外。
+
+上面的例子都使用单一精度。在 32 位系统中使用双精度浮点数会变得更复杂。双精度浮点数用 64 位表示，但是 32 位系统不支持 64 位整数。许多 32 位系统允许您定义 64 位整数，但是它们实际上用两个32位整数来表示，效率较低。您可以使用双精度浮点数的高 32 位，它允许你访问符号位、指数和分数中的高几位。例如，可以这样测试双精度浮点数的符号：
+
+```C++
+// Example 14.23b
+union
+{
+    double d;
+    int i[2];
+} u;
+if (u.i[1] < 0)
+{
+    // test sign bit
+    // u.d is negative or -0
+}
+```
+
+不建议通过修改 `double` 类型的一半二进制位来修改它，比如，如果你想要通过 `u.i[1] ^= 0x80000000` 来反转上述示例中的符号位的话，但这很在 CPU 中产生存储转发延迟（参见手册3：“The microarchitecture of Intel, AMD and VIA CPUs”）。在64 位系统中，可以通过使用 64 位整数而不是两个 32 位整数表示 `double` 来避免这种情况。
+
+访问双精度浮点数中的 32 位的另一个问题是，它不能移植到大端存储的系统中。因此，如果要具有大端存储的其他平台上实现，**示例14.23b** 和 **14.30** 将需要修改。所有 x86 平台（Windows、Linux、BSD、基于 Intel CPU 的 Mac OS等）都使用小端存储，但其他系统可能使用大端存储（如 PowerPC）。
+
+我们可以通过比较 32 - 62 位来近似比较双精度浮点数。这在高斯消元法中求矩阵中值最大的主元是很有用的。`例14.28` 中的方法在主元搜寻中可以这么使用：
+
+```C++
+// Example 14.30
+const int size = 100;
+// Array of 100 doubles:
+union {double d; unsigned int u[2]} a[size];
+unsigned int absvalue, largest_abs = 0;
+int i, largest_index = 0;
+for (i = 0; i < size; i++)
+{
+    // Get upper 32 bits of a[i] and shift out sign bit:
+    absvalue = a[i].u[1] * 2;
+    // Find numerically largest element (approximately):
+    if (absvalue > largest_abs)
+    {
+        largest_abs = absvalue;
+        largest_index = i;
+    }
+}
+```
+
+**例 14.30** 找到数组中 数字（除去符号位）最大（或差不多最大的）的元素。它可能无法区分相对差小于$2^{-20}$的元素，但这对于寻找合适的主元来说是足够准确的。整数比较可能比浮点比较更快。在大的端系统中，你必须用 `u[0]` 替换 `u[1]`。
+
+## 14.10 数学函数
+最常见的数学函数如对数、指数函数、三角函数等都是在 x86 CPU 的硬件中实现的。然而，在大多数情况下，当 SSE2 指令集可用时，软件实现比硬件实现更快。如果启用了 SSE2 指令集，好的编译器将使用软件实现。
+
+使用这些函数的软件实现而不是硬件实现的优势对于单精度比对于双精度更大。但在大多数情况下，软件实现要比硬件实现快，即使对于双精度也是如此。
+
+通过包含与 Intel C++ 编译器一起提供的库：*libmmt.lib* 和头文件 *mathimf.h*，您可以在不同的编译器中使用 Intel 数学函数库。这个库包含许多有用的数学函数。*Intel's Math Kernel Library* 提供了许多高级数学函数，可以从[www.intel.com](www.intel.com)获得（可参见第 122 页）。AMD 数学核心库包含类似的功能，但优化的较差。
+
+注意，当在非 Intel 处理器上运行时，Intel 函数库没有使用最好的指令集（有关如何克服这个限制，请参阅第133页）。
+
+## 14.11 静态库 VS 动态库
+函数库可以实现为静态链接库（*.ilb， *.a），或动态链接库，也称为共享对象（*.dll，* . so）。静态链接的机制是链接器从库文件中提取所需的函数并将它们复制到可执行文件中。只需要将可执行文件分发给最终用户。
+
+动态链接的工作方式则不同。动态库中函数的链接在加载库或运行时解析。因此，当程序运行时，可执行文件和一个或多个动态库都被会加载到内存中。可执行文件和所有动态库都需要分发给最终用户。
+
+静态链接相对于动态链接的优点是：
+1. 使用静态链接，应用程序只需要包含库所需要的部分，而使用动态链接则需要将整个库（或至少库的大部分）加载到内存中，即使只需要库中的一个函数。
+2. 当使用静态链接时，所有代码都包含在一个可执行文件中。而使用动态链接使得程序启动时必须加载多个文件。
+3. 调用动态库中的函数要比调用在静态链接库中的花费更长的时间，因为它需要通过导入表中的指针进行额外的跳转，还可能需要在过程链接表（PLT）中进行查找。
+4. 当代码分布在多个动态库之中时，内存空间变得更加碎片化。动态库加载在可被内存页大小(4096)整除的圆形内存地址（round memory addresses，这是啥？）处。这将使所有动态库争用相同的高速缓存线路。这降低了代码缓存和数据缓存的效率。
+5. 动态库在某些系统中效率可能会较低，因为需要位置无关代码（参见下面的内容）。
+6. 如果使用动态链接，安装使用相同动态库的更新版本的第二个应用程序，可以更改第一个应用程序的行为，但是如果使用静态链接，则不能更改第一个应用程序的行为。
+
+使用动态链接的优点是：
+1. 同时运行的多个应用程序可以共享相同的动态库，无需将库的多个实例加载到内存中。这适用于同时运行多个进程的服务器。实际上，只有代码节和只读数据节可以共享。任何可写数据部分，每个进程都需要一个单独的实例。
+2. 无需更新调用程序，动态链接库就可以更新到新的版本。
+3. 动态链接库可以被不支持静态链接的编程语言调用。
+4. 使用动态链库可以用于为已有程序制作插件来添加新的功能。
+
+权衡每种方法的上述优点，显然静态链接更适合于速度关键型函数。许多函数库都有静态和动态版本。如果速度很重要，则建议使用静态版本。
+
+有些系统允许函数调用的延迟绑定。延迟绑定的原则是，在加载程序时不解析链接函数的地址，而是等到第一次调用该函数时才解析。延迟绑定对于大型库非常有用，因为在大型库中，在单个会话中实际调用的函数很少。但是延迟绑定肯定会降低所调用函数的性能。当一个函数第一次被调用时，由于它需要加载动态链接器，会出现相当大的延迟。
+
+延迟绑定造成的延迟会导致交互程序的可用性问题，因为单击菜单的响应时间变得不一致，有时长得令人无法接受。因此，延迟绑定应该只用于非常大的库。
+
+无法预先确定加载动态库的内存地址，因为固定地址可能与另一个需要相同地址的动态库冲突。有两种常用的方法来处理这个问题：
+1. 重定位。如果需要，代码中的所有指针和地址都会被修改，以适应实际的加载地址。重定位由链接器和加载器完成。
+2. 位置无关代码。代码中的所有地址都是相对于当前位置的。
+
+在Windows中，dll 使用重定位。链接器将 dll 重新定位到特定的加载地址。如果这个地址不是空的，那么 dll 将被加载程序重新定位（rebase）到另一个地址。在主可执行文件中调用 dll 中的函数要经过导入表或指针。dll 中的变量可以通过 `main` 函数中导入的指针来访问（A variable in a DLL can be accessed from main through an imported pointer），但是很少使用这个特性。通过函数调用来交换数据或指向数据的指针更为常见。对 dll 内数据的内部引用在 32 位模式下使用绝对引用，在 64  位模式下使用相对引用。后者的效率略微高一点，因为相对引用在加载时不需要重新定位。
+
+共享对象在类 Unix 系统中默认使用位置无关代码。这比重定位的效率要低，尤其是在 32 位模式下。下一章将描述这是如何工作的，并提出避免位置无关代码成本的方法。
+
+## 14.12 位置无关代码
+Linux、BSD 和 Mac 系统中的共享对象通常使用所谓的位置无关代码。“位置无关代码”的名称实际上比它所表达的含义更丰富。编译为位置无关的代码具有以下特性：
+1. 代码部分不包含需要重新定位的绝对地址，只包含自相关地址。因此，代码段可以在任意内存地址加载，并在多个进程之间共享。
+2. 数据部分不会在多个进程之间共享，因为它通常包含可写数据。因此，数据部分可能包含需要重新定位的指针或地址。
+3. 在 Linux 和 BSD 中，所有公共函数和公共数据都可以被覆盖。如果主可执行文件中的函数与共享对象中的函数具有相同的名称，那么不仅在主可执行文件调用时，而且在从共享对象调用时，主可执行文件中的版本都将是优先的。同样的，当主可执行文件中的全局变量具有与共享对象中的全局变量相同的名称时，即使是从共享对象访问，也将使用主可执行文件中的实例。这种所谓的符号插入是为了模拟静态库的行为。为了实现这个“覆盖”特性，共享对象有一个指向其函数的指针表，称为过程链接表（PLT）和一个指向其变量的指针表，称为全局偏移表（GOT）。所有对函数和公共变量的访问都要经过 PLT 和 GOT。
+
+允许在 Linux 和 BSD 中重写公共函数和数据的符号插入特性代价高昂，而且在大多数库中从未使用过。每当调用共享对象中的函数时，都需要在过程链接表（PLT）中查找函数地址。当访问共享对象中的公共变量时，则需要先在全局偏移表（GOT）中查找该变量的地址。即使访问同一个共享对象中访问函数或变量，也需要这些查找表。显然，所有这些表查找操作都会大大降低执行速度。更详细的讨论可以在 [https://www.macieira.org/blog/2012/01/sorry-state-of-dynamic-libraries-on-linux/](https://www.macieira.org/blog/2012/01/sorry-state-of-dynamic-libraries-on-linux/)中找到。
+
+另一个严重的负担是在 32 位模式下计算自相关引用。32 位 x86 指令集没有用于数据自相关寻址的指令。代码通过以下步骤访问公共数据对象：（1）通过函数调用获得其自身的地址。（2）通过一个自相关地址查找 GOT。（3）在 GOT 中查找数据对象的地址。最后，（4）通过这个地址访问数据对象。在 64 位模式下不需要步骤（1），因为 x86-64 指令集支持自相关寻址。
+
+在 32 位 Linux 和 BSD 中，所有静态数据都使用较慢的 GOT 查找过程，包括不需要“覆盖”特性的本地数据。这包括静态变量、浮点常量、字符串常量和初始化过的数组（initialized arrays）。我无法解释为什么不必要的时候使用这种延迟很高的流程。
+
+显然，避免繁重的位置无关代码和表查找的最佳方法是使用静态链接，如前一节（第149页，TODO）所述。在无法避免动态链接的情况下，有多种方法可以避免位置无关代码的时间消耗特性。这些解决方法依赖于系统，如下所述。
+
+### <u>32 位 Linux 中的共享对象</u>
+根据 Gnu 编译器手册共享对象通常都是使用 *-fpic* 选项编译的。该选项使代码段是位置无关的，为所有函数生成 PLT，为所有公共和静态数据生成 GOT。
+
+不使用 *-fpic* 选项也可以编译共享对象。这样我们就可以摆脱了上面提到的所有问题。代码将运行得更快，因为我们可以访问内部变量和内部函数只需要一个步骤，而不是前面介绍的复杂的地址计算和表查找机制。在没有 *-fpic* 的情况下编译共享对象要快得多，除非是一个非常大的共享对象，而其中大多数函数都不会被调用。在 32 位 Linux 中不使用 *-fpic* 编译的缺点是加载器将有更多的引用需要重新定位，但是这些地址计算只执行一次，而在每次访问时必须执行运行时地址计算。在不使用 *-fpic*  选项的情况下编译代码部分时，每个进程都需要一个实例，因为代码部分中的重新定位对每个进程来说是不同的。显然，我们失去了覆盖公共符号的能力，但无论如何很少需要使用这个特性。
+
+为了可以移植到64位模式，您最好避免全局变量或者隐藏它们，解释如下。
+
+### <u>64 位 Linux 中的共享对象</u>
+在 64 位模式下，计算自相关地址的过程要简单得多，因为 64 位指令集支持数据的相对寻址。在 64 位模式下，由于默认使用相对地址，对特殊的位置无关代码需求更小。然而，我们仍然希望消除对本地引用的 GOT 和 PLT 查找。
+
+在 64 位模式下，如果我们不使用 *-fpic* 选项编译共享对象，我们会遇到其它的问题。编译有时会使用 32 位的绝对地址，主要是静态数组。这在主可执行文件中是没有问题的，因为它肯定是在低于 2GB 的地址加载的，但对于共享对象则不是这样的，共享对象通常加载在 32 位（signed？）地址无法表示的较高地址。在这种情况下，连接器会产生一条错误信息。最佳的解决方案是使用 *-fpie*  选项而不是 *-fpic* 选项来编译。这将在代码部分生成相对地址，但对于内部引用它不会使用 GOT 和 PLT。因此，它将比用 *-fpic* 编译时运行得更快，并且对于32位的情况，它不会有上面提到的缺点。在32位模式下，*-fpie* 选项的作用没有那么大，因为它仍然使用 GOT。
+
+另一种方法是使用 *-mcmodel=large* 选项编译，但这将对所有内容使用 64 位地址，这是非常低效的，而且它将在代码部分生成重定位，因此不能被共享。
+
+使用 *-fpie* 选项时，在 64 位共享对象中，不可以有公共变量，因为当链接器看到一个公共变量的相对引用时，它会产生一个错误消息，因为它期望在这个公共变量有一个 GOT 入口。你可以通过避免任何公共变量来避免该错误。所有全局变量（即定义在任何函数外部的变量）都应该使用声明 `static` 或 `_attribute__((visibility ("hidden"))` 来隐藏。
+
+Gnu 编译器 5.1 及以后版本有一个选项：*-fno-semantic-interposition*，可以使它能够避免使用 *PLT* 和 *GOT*，但仅限于同一文件中的引用。通过使用内联汇编代码为变量提供两个名称，一个全局名称和一个本地名称，并使用本地名称作为本地引用，可以得到相同的效果。
+
+尽管有这些技巧，当使用多个模块（源文件）生成共享对象时，并且存在一个模块调用另一个模块时，您可能仍然会得到错误消息:“ "relocation R_X86_64_PC32 against symbol `functionname' can not be used when making a shared object; recompile with -fPIC"。我至今没有找到该问题的解决方法。
+
+<u>BSD 中的共享变量</u>
+BSD 中的共享对象与 Linux 中的工作方式相同。
+
+### <u>32-bit Mac OS X</u>
+32 位 Mac OS X 的编译器默认情况下使位置无关代码和延迟绑定，即使不使用共享对象。目前在 32-bit Mac 代码中用于计算自相关地址的方法使用了一种不幸的方法，它会导致错误地预测返回地址，从而延迟执行（有关返回预测的解释，请参阅手册3:“The microarchitecture of Intel, AMD and VIA CPUs”）。
+
+只要在编译器中关闭与位置无关代码的标志，就可以显著加速不属于共享对象的所有代码。因此，请记住，在为 32-bit Mac OS X 编译时，总是要指定编译器选项 *-fno-pic*，除非您正在创建一个共享对象。
+
+使用选项 *-fno-pic* 编译共享对象并使用选项 *-read_only_relocs suppress* 链接共享对象时，可以不使用位置无关代码。
+
+对于内部引用不会使用 GOT 和 PLT。
+
+## <u>64-bit Mac OS X</u>
+代码部分始终与位置无关，因为这是这里使用的内存模型的最有效的解决方案。编译器选项 *-fno-pic* 显然没有效果。
+
+对于内部引用不会使用 GOT 和 PLT。
+
+在 Mac OS X 中，不需要采取特别的预防措施来加速 64 位共享对象。
+
+## 14.13 系统编程
+设备驱动程序、中断服务路由、系统核心和高优先级线程是速度特别关键的地方。在系统代码或高优先级线程中非常耗时的函数可能会阻塞其他所有内容的执行。
+
+系统代码必须遵守寄存器使用的某些规则，如手册5中的“Calling conventions for different C++ compilers and operating systems”中 ”内核代码中的寄存器用法“一章所述。因此，您只能使用针对系统代码的编译器和函数库。系统代码应该使用 C、C++ 或汇编语言编写。
+
+在系统代码中节约资源的使用是非常重要的。动态内存分配特别有风险，因为它涉及在不方便的时候激活非常耗时的垃圾收集器的风险。队列应该实现为固定大小的循环缓冲区，而不是链表。不要使用STL容器。见92页（TODO）。
+
+
+# 15 元编程
+元编程意味着编写生成代码的代码。例如，在解释脚本语言中，通常可以编写一段生成字符串的代码段，然后将该字符串解释为代码。
+
+如果计算的所有输入在编译时都可用，元编程在编译语言（如 C++）中非常有用，可以在编译时期而不是运行时期做一些计算。（当然，在所有事情都在运行时发生的解释语言中，则没有这样的优势）。
+
+在 C++ 中，可以考虑使用以下技术进行元编程：
+1. 预处理指令。例如使用 `#if` 代替 `if`。这是一个移除无效代码的有用方法，但是，由于预处理器先于编译器，并且只理解最简单的表达式和运算符，所以它所能做的工作受到了严重的限制。
+2. 编写一个 C++ 程序，生成另一个 C++ 程序（或它的一部分）。在某些情况下，这可能很有用，例如生成最终程序中作为静态数组的数学函数表。当然，这需要编译第一个程序的输出。
+3. 编译器优化可能会在编译时尽可能多地执行操作。例如，所有好的编译器都会将 `int x = 2 * 5` 化简位 `int x = 10`;
+4. 模板在编译时实例化。在编译模板实例之前，将其参数替换为它们的实际值。这就是为什么使用模板实际上没有成本的原因（见第58页，TODO）。使用模板元编程可以表达任何算法，但是这种方法非常复杂和笨拙，稍后您就会看到。
+
+下面的例子解释了当指数是编译时已知的整数时，如何使用元编程来加速幂函数的计算。
+
+```C++
+// Example 15.1a. Calculate x to the power of 10
+
+double xpow10(double x)
+{
+    return pow(x,10);
+}
+```
+
+在一般情况下，`pow` 函数使用对数，但在上面这种情况下，它将识别到 10 是整数，因此结果只能使用乘法计算。当指数为正整数时，在 `pow` 函数中使用以下算法：
+
+```C++
+// Example 15.1b. Calculate integer power using loop
+
+double ipow (double x, unsigned int n)
+{
+    double y = 1.0; // used for multiplication
+    while (n != 0)
+    {
+        // loop for each bit in nn
+        if (n & 1)
+            y *= x; // multiply if bit = 1
+        x *= x; // square x
+        n >>= 1; // get next bit of n
+    }
+    return y; // return y = pow(x,n)
+}
+double xpow10(double x)
+{
+    return ipow(x,10); // ipow faster than pow
+}
+```
+当我们展开循环并重新组织时，**例15.1b** 中使用的方法将更容易理解：
+
+```C++
+// Example 15.1c. Calculate integer power, loop unrolled
+
+double xpow10(double x)
+{
+    double x2 = x *x; // x^2
+    double x4 = x2*x2; // x^4
+    double x8 = x4*x4; // x^8
+    double x10 = x8*x2; // x^10
+    return x10; // return x^10
+}
+```
+
+
+正如我们所看到的，只需要四次乘法就可以计算出 `pow(x,10)`。那怎么才能将 **例 15.1b** 转换到 **例 15.1c**呢？我们利用了在编译时已知 `n` 的事实，消除了只依赖于 `n` 的所有内容，包括 `while` 循环、`if` 语句和所有整数计算。**例 15.1c**中的代码比 **15.1b** 更快，在这种情况下，它可能也更小。
+
+从 **例15.1b** 到 **15.1c** 的转换是由我手动完成的，但是如果我们想生成一段代码，使它可以用于编译时已知的常量 `n`，那么我们需要元编程。我测试过的所有编译器都不能自动将 **例15.1a** 转换为 **15.1c**，只有 **Gnu** 编译器才能将 **例15.1b** 转换为 **15.1c**。我们只能希望将来的编译器能够自动进行这样的优化，但只要不是这样，我们就可能需要元编程。
+
+下一个示例显示使用模板元编程来实现计算。如果你不懂也不要惊慌。我给出这个示例只是为了说明模板元编程是多么复杂。
+
+```C++
+// Example 15.1d. Integer power using template metaprogramming
+
+// Template for pow(x,N) where N is a positive integer constant.
+// General case, N is not a power of 2:
+template <bool IsPowerOf2, int N>
+class powN
+{
+public:
+    static double p(double x) {
+    // Remove right-most 1-bit in binary representation of N:
+    #define N1 (N & (N-1))
+    return powN<(N1&(N1-1))==0,N1>::p(x) * powN<true,N-N1>::p(x);
+    #undef N1
+    }
+};
+
+// Partial template specialization for N a power of 2
+template <int N>
+class powN<true,N>
+{
+public:
+    static double p(double x)
+    {
+        return powN<true,N/2>::p(x) * powN<true,N/2>::p(x);
+    }
+};
+
+// Full template specialization for N = 1. This ends the recursion
+template<>
+class powN<true,1>
+{
+public:
+    static double p(double x)
+    {
+        return x;
+    }
+};
+
+// Full template specialization for N = 0
+// This is used only for avoiding infinite loop if powN is
+// erroneously called with IsPowerOf2 = false where it should be true.
+template<>
+class powN<true,0>
+{
+public:
+    static double p(double x)
+    {
+        return 1.0;
+    }
+};
+
+// Function template for x to the power of N
+template <int N>
+static inline double IntegerPower (double x)
+{
+    // (N & N-1)==0 if N is a power of 2
+    return powN<(N & N-1)==0,N>::p(x);
+}
+
+// Use template to get x to the power of 10
+double xpow10(double x)
+{
+    return IntegerPower<10>(x);
+}
+```
+
+如果你想知道这是怎么回事，请看下面的解释。如果您不确定是否需要，可以跳过下面的解释。
+
+在 C++ 模板元编程中，循环被实现为递归模板。`powN` 模板正在调用自己，以便模拟 **例15.1b** 中的 `while` 循环。分支是通过（部分）模板特化实现的， 这就是对 **例15.1b**中的 `if` 分支的实现。递归必须始终以非递归模板特化结束，而不是在模板中包含分支。
+
+`powN` 模板是类模板而不是函数模板，因为只允许对类进行部分模板特化。将 `N` 分解成二进制表示的各个位是非常需要技巧的的。我使用的技巧是 `N1 = N&(N-1)` 给得到 `N` 的去掉最右边的 1 位的值。如果 `N` 是 2 的幂，那么 `N&(N-1)` 为  0。常量 `N1` 可以用其他方法定义，而不是只能宏定义，但是这里使用的方法是我尝试过的所有编译器中唯一全部适用的方法。
+
+微软、英特尔和 Gnu 编译器实际上按照预期地将 **例15.1d** 化简到 **15.1c**，而 Borland 和 Digital Mars 编译器产生的代码不太理想，因为它们无法消除公共子表达式。
+
+为什么模板元编程如此复杂？因为 C++ 的模板特性从来不是为此目的设计。这只是碰巧可行。模板元编程非常复杂，我认为使用它是不明智的。复杂的代码本身就是一个风险，而且验证、调试和维护这些代码的成本非常高，因此很少有理由在获得相对较小的性能收益时使用它。
+
+然而在某些情况下，模板元编程是确保在编译时完成某些计算的唯一方法。（可以在我的 [ vector class library](http://www.agner.org/optimize/#vectorclass) 中找到例子）。
+
+D 语言允许*编译时 if* 语句（称为*静态 if*），但不允许编译时循环或编译时生成标识符名称。我们只能希望这样的功能在将来能够实现。如果 C++ 的未来版本应该会允许 *编译时 If* 和*编译时 while 循环*，那么将 例15.1b*转换为元编程将非常简单。MASM 汇编语言具有完整的元编程特性，包括通过字符串函数来定义函数名和变量名的能力。在手册2“Optimizing subroutines in assembly language”的“宏循环”一节中，提供了一个类似于**例 15.1b**和 **例 15.1d**的使用汇编语言的元编程实现。
+
+当我们在等待更好的元编程工具出现时，我们可以选择那些最擅长在任何可能的情况下自动进行等价化简的编译器。使用自动将 **例15.1a** 化简到**15.1c**的编译器当然是最简单和最可靠的解决方案。(在我的测试中，Intel 编译器将**15.1a** 化简为内联的**15.1b**， Gnu 编译器将**15.1b**化简为**15.1c**，但是没有一个编译器能将**15.1a**化简为**15.1c**）。
+
+## 16 测试速度
+测试程序的速度是优化工作的重要组成部分。你必须检查你的修改是否真的提高了速度。
+
+有多种可用的分析器，它们对于查找热点和测量程序的总体性能非常有用。然而，分析器并不总是准确的，而且当程序花费大部分时间等待用户输入或读取磁盘文件时，可能很难准确地测量您需要的是什么。有关分析的讨论请参见第16页（TODO）。
+
+当确定了热点之后，隔离热点并仅对代码的这一部分进行测量可能是有用的。这可以通过使用所谓的时间戳计数器来获得 CPU 时钟的分辨率来实现。这是一个计数器，用来测量 CPU 启动以来的时钟脉冲数。时钟周期的长度是时钟频率的倒数，如第16页（TODO）所述。如果您在执行一段关键代码之前和之后读取时间戳计数器的值，那么您可以得到确切的时间消耗，即两个时钟计数之间的差值。
+
+使用**例16.1**中列出的函数 `ReadTSC` 可以获得时间戳计数器的值。此代码仅适用于支持指令集函数的编译器。或者，您可以使用[www.agner.org/optimize/testp.zip](www.agner.org/optimize/testp.zip)中的头文件 **timingtest.h**，或者从[www.agner.org/optimize/asmlib.zip](www.agner.org/optimize/asmlib.zip)获得 `ReadTSC` 作为库函数来使用。
+
+```C++
+// Example 16.1
+
+#include <intrin.h> // Or #include <ia32intrin.h> etc.
+long long ReadTSC()
+{
+    // Returns time stamp counter
+    int dummy[4]; // For unused returns
+    volatile int DontSkip; // Volatile to prevent optimizing
+    long long clock; // Time
+    __cpuid(dummy, 0); // Serialize
+    DontSkip = dummy[0]; // Prevent optimizing away cpuid
+    clock = __rdtsc(); // Read time
+    return clock;
+}
+```
+
+您可以使用此函数来测量执行关键代码前后的时钟计数。测试设置可能是这样的：
+
+```C++
+// Example 16.2
+
+#include <stdio.h>
+#include <asmlib.h> // Use ReadTSC() from library asmlib..
+                    // or from example 16.1
+void CriticalFunction(); // This is the function we want to measure
+...
+const int NumberOfTests = 10; // Number of times to test
+int i; long long time1;
+long long timediff[NumberOfTests]; // Time difference for each test
+for (i = 0; i < NumberOfTests; i++)
+{
+    // Repeat NumberOfTests times
+    time1 = ReadTSC(); // Time before test
+    CriticalFunction(); // Critical function to test
+    timediff[i] = ReadTSC() - time1; // (time after) - (time before)
+}
+printf("\nResults:"); // Print heading
+for (i = 0; i < NumberOfTests; i++)
+{
+    // Loop to print out results
+    printf("\n%2i %10I64i", i, timediff[i]);
+}
+```
+
+**例16.2**中的代码调用关键函数十次，并将每次运行的时间消耗存储在一个数组中。然后在测试循环之后输出这些值。以这种方式测量的时间包括调用 `ReadTSC` 函数所需的时间。你可以从计数中减去这个值。这个值简单地通过移除**例16.2**中的 `CriticalFunction` 函数的调用来测量。
+
+测量的时间按以下方式解释。第一次调用地计数通常高于随后的数。这是当代码和数据没有被缓存时执行 `CriticalFunction` 函数所需要的时间。随后的计数给出当代码和数据被经可能缓存好时所需的执行时间 。第一个计数和随后的计数分别表示“最坏情况”和“最佳情况”的值。这两个值中哪一个最接近真实情况取决于最终程序中对 `CriticalFunction` 函数的调用一次还是多次，以及对 `CriticalFunction` 调用之间是否有其他代码使用缓存。如果您的优化工作集中在 CPU 效率上，那么它是“最好的情况”就很重要，您应该看看某个修改是否有利可图。另一方面，如果您的优化工作集中于按顺序排列数据以提高缓存效率上，然后您还可以查看“最坏情况”下的计数。在任何情况下，典型应用程序中，用户可能经过的时间延迟应该时这么计算的：时钟计数 * 时钟周期 * 调用 `CriticalFunction` 函数的次数。
+
+有时候，你测量的时钟计数比正常情况下要高得多。当在 `CriticalFunction` 函数执行期间发生任务切换时，就会发生这种情况。您无法在受保护的操作系统中避免这种情况，但是您可以通过在测试前增加线程优先级并在测试后将优先级设置为正常来减少这个问题的发生。
+
+时钟计数经常波动，测试结果的可重复性可能不是很好。这是因为现代 CPU 可以根据工作负载动态地改变时钟频率。工作负荷大时时钟频率增大，工作负荷小时时钟频率减小，以节约电能。有多种方法可以获得可重复的时间测量值：
+1. 通过在测试代码之前给 CPU 一些繁重的工作来预热 CPU。
+2. 禁用 BIOS 设置中的省电选项。
+3. 在 Intel CPU 上：使用内核时钟周期计数器（见下面内容）。
+
+## 16.1 使用性能监视器计数器
+许多 CPU 都有一个内置的测试特性，称为性能监视计数器。性能监视器计数器是 CPU 中的一个计数器，可以设置它来计数某些事件，比如执行的机器指令数量、缓存丢失、分支错误预测等。这些计数器对于研究性能问题非常有用。性能监视计数器是特定于 CPU 的，每个 CPU 模型都有自己的一组性能监视参数。
+
+CPU 厂商会提供适合他们 CPU 的分析工具。英特尔的分析器叫做 *VTune*；AMD 的分析器叫做 *CodeAnalyst*。这些分析器对于识别代码中的热点非常有用。
+
+在我自己的研究中，为了使用性能监视器计数器，我开发了一个测试工具。我的测试工具同时支持 Intel、AMD 和 VIA 处理器，可以从[www.agner.org/optimize/testp.zip](www.agner.org/optimize/testp.zip)获得。这个工具不是分析器。它不是用于寻找热点的，而是用于在确定了热点之后研究代码段。
+
+我的测试工具可以以两种方式使用。第一种方法是将要测试的代码插入测试程序本身并重新编译它。我使用它来测试单个汇编指令或小段代码。第二种方法是在运行要优化的程序之前设置性能监视器计数器，并在要测试的代码段之前和之后读取程序内部的性能计数器。您可以使用与上面**例16.2**相同的原则，但是读取一个或多个性能监视器计数器，替换（除了）时间戳计数器。测试工具可以在所有 CPU 内核中设置并启用一个或多个性能监视器计数器，并保持启用它们（每个CPU内核中有一组计数器）。计数器会一直开着，直到你关掉它们，或者直到电脑重置或进入睡眠模式。有关详细信息，请参阅我的测试工具手册（[www.agner.org/optimize/testp.zip](www.agner.org/optimize/testp.zip)）。
+
+英特尔处理器中一个特别有用的性能监视器计数器称为核心时钟周期计数器。核心时钟周期计数器是按照 CPU 核心运行时的实际时钟频率而不是外部时钟计算时钟周期的。这给出了一个几乎与时钟频率变化无关的度量。当测试一段代码的哪个版本最快时，核心时钟周期计数器非常有用，因为您可以避免时钟频率上升和下降的问题。
+
+记得在程序中插入一个开关，以便在不测试时关闭计数器的读取。当性能监视器计数器被禁用时，试图读取它们将导致程序崩溃。
+
+## 16.2 单元测试的陷阱
+在软件开发中，通常单独测试每个函数或类。这种单元测试对于验证优化函数的功能是必要的，但是不幸的是，单元测试并没有提供关于函数性能在速度方面的全部信息。
+
+假设你有两个不同版本的关键函数，你想找出哪个是最快的。测试这一点的典型方法是编写一个小型测试程序，使用一组合适的测试数据多次调用关键函数，并测量所需的时间。在此单元测试下性能最好的版本可能比其他版本占用更大的内存。在单元测试中看不到缓存命中失败的损失，因为测试程序使用的代码和数据内存总量可能小于缓存大小。
+
+当在最终程序中插入关键函数时，代码缓存和数据缓存很可能是关键资源。现代 CPU 的速度如此之快，以至于时钟周期花费在执行指令上不太可能像内存访问和缓存大小那样成为瓶颈。如果是这种情况，那么关键函数的最佳版本可能是单元测试中花费更长的时间但内存占用更小的版本。
+
+例如，如果您想知道展开一个大循环是否有利的，那么您不能依赖单元测试而不考虑缓存效果。
+
+通过为链接器使用“生成映射文件”选项，您可以查看链接映射或汇编代码列表来计算函数使用了多少内存。代码缓存使用和数据缓存使用都很重要。分支目标缓冲区也是一个关键的缓存。因此，还应该考虑函数中跳转、调用和分支的数量。
+
+一个实际的性能测试不仅应该包含单个函数或热点，还应该包含包含关键函数和热点的最内层循环。应该使用一组真实的数据来进行测试，以便为分支错误预测获得可靠的结果。性能度量不应该包括程序中等待用户输入的任何部分。用于文件输入和输出的时间应该分开测量。
+
+不幸的是，用单元测试来度量性能的谬论非常普遍。即使是一些最佳优化的函数库也会使用过多的循环展开，因此内存占用非常大。
+
+## 16.3 最差条件测试
+大多数性能测试都是在最佳条件下进行的。消除了所有干扰的影响，所有资源都是充足的，缓存条件是最优的。最佳条件测试是有用的，因为它提供了更可靠和可重复的结果。如果您想比较同一算法的两种不同实现的性能，那么您需要消除所有干扰影响，以便使测量尽可能准确和可重现。
+
+然而，在某些情况下，在最坏的情况下测试性能更为相关。例如，如果您想确保对用户输入的响应时间永远不会超过可接受的范围，那么您应该在最坏情况下测试响应时间。
+
+产生流媒体音频或视频的程序也应该在最坏的情况下进行测试，以确保它们始终保持预期的实时速度。输出中的延迟或故障是不可接受的。
+
+在测试最坏情况下的性能时，以下每一种方法都可能是相关的：
+1. 第一次激活程序的某个特定部分时，由于代码的延迟加载、缓存未命中和分支预测错误，它可能比之后的速度慢。
+2. 测试整个软件包，包括所有运行时库和框架，而不是隔离单个函数。在软件包的不同部分之间切换，以增加程序代码的某些部分未被缓存或甚至被交换到磁盘的可能性。
+3. 依赖于网络资源和服务器的软件应该在流量较大的网络和被充分使用的服务器上进行测试，而不是专用的测试服务器。
+4. 使用包含大量数据的大型数据文件和数据库。
+5. 使用 CPU 速度慢、RAM 不足、安装了大量无关软件、运行了大量后台进程、硬盘速度慢且碎片化的旧计算机。
+6. 使用不同品牌的 CPU、不同类型的显卡等进行测试。
+7. 使用杀毒程序，扫描所有文件的访问。
+8. 同时运行多个进程或线程。如果微处理器支持超线程，那么尝试在同一个处理器内核中运行两个线程。
+9. 尝试分配比现有内存更多的 RAM，以便强制将内存交换到磁盘。
+10. 通过使最内层循环中使用的代码大小或数据大于缓存大小来触发缓存未命中。或者，您可以主动地使缓存失效。操作系统可能有一个用于此目的的函数，或者您可以使用指令集函数 `_mm_clflush`。
+11. 使数据比正常情况更随机，从而引发分支错误预测。
+
+# 17 在嵌入式系统中优化
+在小型嵌入式应用程序中使用的微控制器比标准 PC 拥有更少的计算资源。时钟频率可以低 100 倍甚至 1000 倍；而且 RAM 内存的数量甚至可能比 PC 少一百万倍。尽管如此，如果您避免使用大型图形框架、解释器、即时编译器、系统数据库以及通常用于大型系统的其他额外软件层和框架，则可以使软件在这样的小型设备上运行得相当快。
+
+系统越小，选择一个占用较少资源的软件框架就越重要。在最小的设备上，甚至没有操作系统。)
+
+可以通过选择可以在 PC 上交叉编译的编程语言来获得最佳的性能。任何要求在目标设备上编译或者解释的语言都会对资源产生极大的浪费。：由于这些原因，首选的语言通常是 C 或 C++。关键设备驱动程序可能需要汇编语言。
+
+如果遵循下面的指导原则，C++ 只需要比 C 多一点点的资源。您可以根据最适合所需程序结构的方式选择 C 或 C++。
+
+节约内存的使用是很重要的。大数组应该在函数中声明，以便在函数返回时释放它们。或者，您可以将相同的数组重用于多个目的。
+
+应该避免所有使用 `new` / `delete`或 `malloc` / `free`的动态内存分配，因为管理内存堆的开销很大。堆管理器有一个垃圾收集器，它可能以不可预测的间隔消耗时间，这可能会干扰实时应用程序。
+
+请记住，STL （标准模板库）和其他容器类库中的容器类使用 `new` 和 `delete` 来动态内存，而且常常过多地使用动态内存分配。除非您有足够的资源，否则绝对应该避免使用这些容器。例如，FIFO 队列应该被实现为一个固定大小的循环缓冲区，以避免动态内存分配。不要使用链表（请参阅第95页，TODO）。
+
+字符串类的所有常见实现都使用动态内存分配。您应该避免这些，并以老式 C 风格使用字符数组处理字符串。注意，C 风格的字符串函数不会检查数组是否溢出。程序员需要确保数组足够大，可以处理字符串（包括终止符 0），并在必要时进行溢出检查（参见第98页，TODO）。
+
+C++ 中的虚函数比非虚函数占用更多的资源。尽可能避免使用虚函数。
+
+较小的微处理器没有本地浮点执行单元。此类处理器上的任何浮点运算都需要一个很大的浮点库，这非常耗时。因此，应该避免使用浮点表达式。例如，`a = b * 2.5` 可能改为`a = b * 5 / 2`（注意中间表达式 `b * 5` 可能会溢出）。只要程序中有一个浮点常量，就会加载整个浮点库。如果你想用两个小数来计算一个数字，那么你应该把它乘以100，这样它就可以表示为一个整数。
+
+整数变量可以是 8 位、16 位或 32 位（很少有 64 位）。如果需要，可以使用不会导致特定应用程序溢出的最小整数大小来节省 RAM 空间。整数大小没有跨平台标准化。有关每种整数类型的大小，请参阅编译器文档。
+
+中断服务程序和设备驱动程序尤其重要，因为它们可以阻止其他所有东西的执行。这通常属于系统编程领域，但在没有操作系统的应用程序中，这是应用程序程序员的工作。当没有操作系统时，程序员更容易忘记系统代码是很关键的，因此系统代码没有与应用程序代码分离。中断服务程序应该做尽可能少的工作。通常，它应该将接收到的数据的一个单元保存在静态缓冲区中，或者从缓冲区发送数据。它永远不应该响应某个命令，或者执行它所服务的特定事件之外的其他输入/输出。中断接收到的命令最好以较低的优先级响应，通常在主程序的消息循环中响应。有关系统代码的进一步讨论，请参见第153页（TODO）。
+
+在本章中，我描述了一些对资源有限的小型设备特别重要的考虑。本手册其余部分的大部分建议也与小型设备有关，但由于小型微控制器的设计会存在一些差异：
+1. 较小的微控制器没有分支预测（见第43页，TODO）。软件中不需要考虑分支预测。
+2. 较小的微控制器没有缓存（见第89页，TODO）。不需要组织数据来优化缓存。
+3. 较小的微控制器没有无序执行。没有必要打破依赖链（见第22页，TODO）。
+
+# 18 编译器选项一览
+
+<center>
+
+**Table 18.1. Command line options relevant to optimization**
+
+|     | **MS compiler<br>Windows</br>** | **Gnu compiler<br>Linux</br>** | **Intel compiler<br>Windows</br>** | **Intel compiler<br>Linux</br>** |
+| :-- | :------------------------------ | :----------------------------- | :--------------------------------- | :------------------------------- |
+|Optimize for speed| /O2 or /Ox| -O3 or -Ofast|/O3| -O3|
+|Interprocedural<br>optimization</br>| /Og| | | |
+|Whole program<br>optimization</br> |/GL |--combine<br>-fwhole-</br>program | /Qipo| -ipo|
+|No exception<br>handling</br>|/EHs||||
+|No stack frame |/Oy |-fomit-<br>frame-</br>pointer| |-fomit-<br>frame-</br>pointer|
+|No runtime type<br>identification (RTTI)</br>| /GR–| -fno-rtti | /GR- |-fno-rtti |
+|Assume no pointer<br>aliasing</br>| /Oa | | | -fno-alias|
+|Non-strict floating<br>point</br>| | -ffast-math | /fp:fast <br>/fp:fast=2</br> | -fp-model <br>fast, -fp-</br>model fast=2 |
+| Simple member <br>pointers</br> |/vms| | | |
+| Fastcall functions |/Gr| | | |
+| Function level linking<br>(remove unreferen-</br>ced functions)| /Gy | -ffunction-<br>sections</br>|/Gy |-ffunction-<br>sections</br>|
+| SSE instruction set<br>(128 bit float vectors)</br> | /arch:SSE | -msse | /arch:SSE | -msse |
+| SSE2 instruction set<br>(128 vectors of integer or double)</br>| /arch:SSE2 | -msse2 | /arch:SSE2 | -msse2 |
+| SSE3 instruction set | | -msse3 | /arch:SSE3 | -msse3 |
+|Suppl. SSE3 instr. set | | -mssse3 | /arch:SSSE2 | -mssse3 |
+|SSE4.1 instr. set | | -msse4.1 | /arch:SSE4.1 | -msse4.1 |
+|AVX instr. set | /arch:AVX | -mAVX | /arch:AVX | -mAVX |
+| Automatic CPU<br>dispatch</br>| | |/QaxSSE3, etc.<br>(Intel CPU only)</br>| -axSSE3, etc.<br>(Intel CPU only)</br>|
+| Automatic<br>vectorization</br>| |-O3 -fno-<br>trapping-</br>math -fno-<br>math-errno</br>-mveclibabi| |
+| Automatic paralleli-<br>zation by multiple</br>threads | | |/Qparallel | -parallel |
+| Parallelization by<br>OpenMP directives</br>| /openmp | -fopenmp | /Qopenmp | -openmp |
+|32 bit code| | -m32 | | |
+|64 bit code| | -m64 | | |
+| Static linking | /MT | -static   | /MT   | -static |
+| (multithreaded) | | | | |
+| Generate assembly<br>listing</br> | /FA | -S - <br>masm=intel</br> | /FA | -S|
+| Generate map file | /Fm | | | |
+| Generate<br>optimization report</br>| | |/Qopt-report | -opt-report|
+
+</center>
+
+<center>
+
+**Table 18.2. Compiler directives and keywords relevant to optimization**
+
+|     | **MS compiler**<br>**Windows**</br> | **Gnu compiler**<br>**Linux**</br> | **Intel compiler**<br>**Windows**</br> | **Intel compiler<br>Linux</br>** |
+| :-- | :------------------------------ | :----------------------------- | :--------------------------------- | :------------------------------- |
+| Align by 16 | `__declspec(align(16))` | `__attribute((aligned(16)))` | `__declspec(align(16))` | `__attribute((aligned(16)))` |
+| Assume<br>pointer is</br>aligned | | | `#pragma vector aligned` | `#pragma vector aligned` |
+| Assume<br>pointer not</br>aliased|` #pragma optimize("a", on)`<br>`__restrict`</br> | `__restrict` | `__declspec(noalias)`<br>`__restrict #pragma ivdep`</br> | `__restrict`<br>`#pragma ivdep`</br> |
+| Assume<br>function is</br>pure| | `__attribute((const))` | | `__attribute((const))` |
+|Assume function<br>does not</br>throw exceptions| `throw()` | `throw()` |  `throw()` | `throw()` |
+|Assume function<br>called only from</br>same module | `static` | `static` | `static` | `static` |
+|Assume member<br>functioncalled only</br> fromsame module | | `__attribute__((visibility`<br> `("internal")))`</br>| |`__attribute__((visibility`<br>`("internal")))`</br>|
+| Vectorize | | | `#pragma vector always` | `#pragma vector always`|
+|Optimize function | `#pragma optimize(...)` | | | |
+| Fastcall<br>function</br>| `__fastcall` | `__attribute((fastcall))` | `__fastcall` | |
+|Noncached write| | | `#pragma vector nontemporal` | `#pragma vector nontemporal`|
+</center>
+
+<center>
+**Table 18.3. Predefined macros**
+
+|     | **MS compiler<br>Windows</br>** | **Gnu compiler<br>Linux<\br>** | **Intel compiler<br>Windows</br>** | **Intel compiler<br>Linux</br>** |
+| :-- | :------------------------------ | :----------------------------- | :--------------------------------- | :------------------------------- |
+| Compiler identification | `MSC_VER` and not<br>`__INTEL_COMPILER`</br>|  `__GNUC__` and not <br>`_INTEL_COMPILER`</br>| `__INTEL_COMPILER` | `__INTEL_COMPILER`|
+| 16 bit | not `_WIN32` | n.a.| n.a. | n.a. |
+| platform | | | | |
+| 32 bitplatform | not `_WIN64` | |not `_WIN64` | |
+| 64 bit platform | `_WIN64` | `_LP64` ` _WIN64` ` _LP64` |
+|Windows platform | `_WIN32` | | `_WIN32`| |
+|Linux platform | n.a. | `__unix__`<br>`__linux__`</br> | | `__unix__`<br>`__linux__`</br>|
+| x86 platform | `_M_IX86` | |` _M_IX86` | |
+| x86-64 platform | `M_IX86` and `_WIN64` | | `_M_X64` | `_M_X64`|
+
+</center>
+
+# 19 文献
+
+<u>Agner Fog 的其它手册</u>
+本手册是五本系列中手册的第一本。有关手册列表，请参见第3页（TODO）。
+
+<u>关于代码优化的文献</u>
+Intel："Intel 64 and IA-32 Architectures Optimization Reference Manual"。[developer.intel.com](developer.intel.com)。许多用于在英特尔 CPU 优化 C++和汇编代码的建议。定期更新版本；
+
+AMD："Software Optimization Guide for AMD Family 15h Processors"。 [www.amd.com](www.amd.com)。许多用于在 AMD CPU 优化 C++和汇编代码的建议。定期更新版本；
+
+Intel："Intel® C++ Compiler Documentation"。包含在英特尔 C++编译器中，可以从 [ www.intel.com](www.intel.com) 上找到。使用 Intel C++ 编译器优化特性的手册
+
+维基百科关于编译器优化的文章。[en.wikipedia.org/wiki/Compiler_optimization](en.wikipedia.org/wiki/Compiler_optimization)。
+
+ISO/IEC TR 18015, "Technical Report on C++ Performance"。[ www.openstd.org/jtc1/sc22/wg21/docs/TR18015.pdf](www.openstd.org/jtc1/sc22/wg21/docs/TR18015.pdf)。
+
+OpenMP。[www.openmp.org](www.openmp.org)。用于并行处理的OpenMP指令的文档。
+
+Scott Meyers: "Effective C++". Addison-Wesley. Third Edition, 2005; and "More Effective C++". Addison-Wesley, 1996。这两本书包含了许多关于高级c++编程的技巧，如何避免难以发现的错误，以及一些提高性能的技巧。
+
+Stefan Goedecker and Adolfy Hoisie: "Performance Optimization of Numerically Intensive Codes", SIAM 2001。关于 C++ 和 Fortran 代码优化的高级书籍。主要关注具有大数据集的数学应用。涵盖个人电脑，工作站和科学向量处理器。
+
+Henry S. Warren, Jr.: "Hacker's Delight". Addison-Wesley, 2003。包含许多位操作技巧。
+
+Michael Abrash: "Zen of code optimization", Coriolis group books 1994。大部分已经过时了。
+
+Rick Booth: "Inner Loops: A sourcebook for fast 32-bit software development", AddisonWesley 1997。大部分已经过时了。
+
+<u>微处理器文档</u>
+Intel: "IA-32 Intel Architecture Software Developer’s Manual", Volume 1, 2A, 2B, and 3A and3B. [developer.intel.com](developer.intel.com).
+
+AMD: "AMD64 Architecture Programmer’s Manual", Volume 1 - 5. [www.amd.com](www.amd.com)。
+
+<u>网络论坛</u>
+一些互联网论坛和新闻组包含关于代码优化的有用讨论。参见[www.agner.org/optimization](www.agner.org/optimization)和新闻组 comp.lang.asm.x86 的一些链接。
+
+# 20 版权声明
+这五本手册的版权归 Agner Fog 所有。不允许公开分发和镜像。出于教育目的，允许向有限的受众进行非公开发行。这些手册中的代码示例可以无限制地使用。知识共享许可CC-BY-SA将在我死后自动生效。参见 [https://creativecommons.org/licenses/by-sa/4.0/legalcode](https://creativecommons.org/licenses/by-sa/4.0/legalcode)
