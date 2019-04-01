@@ -5,7 +5,7 @@ Please visit [https://www.agner.org/optimize/](https://www.agner.org/optimize/) 
 
 
 # Task List
-1. [Optimizing software in C++:An optimization guide for Windows,Linux adn Mac](pdf/Optimizing software in C++ --- An optimization guide for Windows,Linux adn Mac.pdf) - finished
+1. [Optimizing software in C++:An optimization guide for Windows,Linux adn Mac](./pdf/Optimizing software in C++ --- An optimization guide for Windows,Linux adn Mac.pdf) - finished
 2. Optimizing subroutines in assembly languague:An optimization guide for x86 platforms. - planning
 
 3. The microarchitecture of Intel,AMD and VIA CPUs:An optimization guide for assembly programmers and compiler makers. - planning
